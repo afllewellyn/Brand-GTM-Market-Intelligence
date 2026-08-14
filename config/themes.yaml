@@ -1,0 +1,66 @@
+# Theme taxonomy used by the deterministic signal aggregator.
+# Matching is case-insensitive substring matching against title + snippet.
+# Counts produced from this file are the ONLY counts the LLM may cite.
+
+themes:
+  pricing_roi:
+    - pricing
+    - price
+    - cost
+    - roi
+    - return on investment
+    - tco
+    - payback
+    - economics
+  compliance_security:
+    - compliance
+    - security
+    - privacy
+    - gdpr
+    - ccpa
+    - soc 2
+    - hipaa
+    - governance
+    - data residency
+    - risk
+  performance_validation:
+    - performance
+    - latency
+    - reliability
+    - benchmark
+    - accuracy
+    - uptime
+    - case study
+    - scale
+    - production
+  voice_agents:
+    - voice agent
+    - voice agents
+    - ai agent
+    - ai agents
+    - phone agent
+  contact_center:
+    - contact center
+    - call center
+    - cx
+    - customer experience
+  implementation:
+    - implementation
+    - integration
+    - api
+    - deployment
+    - migration
+    - architecture
+  comparison:
+    - " vs "
+    - versus
+    - alternative
+    - alternatives
+    - compare
+    - comparison
+  localization:
+    - localization
+    - multilingual
+    - languages
+    - translation
+    - dubbing

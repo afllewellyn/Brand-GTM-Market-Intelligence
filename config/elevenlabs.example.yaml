@@ -1,0 +1,70 @@
+# Enterprise Demand Radar — example configuration
+# ElevenLabs is used here as a portfolio/example B2B use case.
+# Replace brand, keywords, competitors, and ICP roles for any other company.
+
+brand_name: ElevenLabs
+
+primary_markets:
+  - North America
+
+base_keywords:
+  - enterprise voice AI
+  - voice agents
+  - AI contact center
+  - AI phone agent
+  - multilingual voice AI
+  - voice AI compliance
+  - voice infrastructure
+
+competitors:
+  - OpenAI
+  - PlayAI
+  - Speechify
+  - WellSaid Labs
+  - PolyAI
+  - Deepgram
+
+icp_roles:
+  - Head of CX
+  - Contact Center Operations
+  - Director of Product
+  - Head of Localization
+  - Head of Compliance
+
+timeframe: weekly
+results_per_query: 10
+
+search:
+  # Providers: dataforseo (production default), serper (alternative),
+  # mock (no credentials, for demos/tests).
+  # Credentials come from environment variables ONLY (see .env.example):
+  #   dataforseo -> DATAFORSEO_LOGIN + DATAFORSEO_PASSWORD
+  #   serper     -> SERPER_API_KEY
+  # Never put keys in this file — the loader will refuse to run.
+  provider: dataforseo
+  results_per_query: 10
+  # DataForSEO locale (ignored by other providers)
+  language_code: en
+  location_code: 2840  # United States
+
+llm:
+  provider: anthropic
+  # static = use the per-task models below
+  # adaptive = reserved for a future external model-routing service
+  routing_mode: static
+  tasks:
+    query_expansion:
+      model: claude-haiku-4-5
+      reasoning_level: low
+    trend_analysis:
+      model: claude-sonnet-5
+      reasoning_level: high
+    gtm_recommendations:
+      model: claude-sonnet-5
+      reasoning_level: medium
+    executive_summary:
+      model: claude-haiku-4-5
+      reasoning_level: low
+
+# Optional: point at a custom theme taxonomy
+# themes_file: config/themes.yaml

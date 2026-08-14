@@ -1,0 +1,200 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1560" height="720" viewBox="0 0 1560 720" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <defs>
+    <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.4" fill="#d7dbe0"/>
+    </pattern>
+    <filter id="card" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#0f172a" flood-opacity="0.10"/>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#9aa3ad"/>
+    </marker>
+  </defs>
+
+  <rect width="1560" height="720" fill="#f4f6f8"/>
+  <rect width="1560" height="720" fill="url(#dots)"/>
+
+  <text x="34" y="44" font-size="20" font-weight="700" fill="#1f2937">Enterprise Demand Radar — pipeline</text>
+  <text x="34" y="66" font-size="13" fill="#6b7280">Evidence first. Interpretation second.</text>
+
+  <!-- legend -->
+  <g font-size="12" fill="#374151">
+    <rect x="1160" y="28" width="14" height="14" rx="4" fill="#10b981"/>
+    <text x="1180" y="39">Python (deterministic)</text>
+    <rect x="1330" y="28" width="14" height="14" rx="4" fill="#8b5cf6"/>
+    <text x="1350" y="39">LLM</text>
+    <rect x="1400" y="28" width="14" height="14" rx="4" fill="#3b82f6"/>
+    <text x="1420" y="39">Search</text>
+  </g>
+
+  <!-- connectors -->
+  <g stroke="#9aa3ad" stroke-width="2" fill="none">
+    <path d="M 250 150 C 285 150, 285 150, 318 150" marker-end="url(#arrow)"/>
+    <path d="M 538 150 C 585 150, 570 96,  616 96"  marker-end="url(#arrow)"/>
+    <path d="M 538 150 C 585 150, 570 190, 616 190" marker-end="url(#arrow)"/>
+    <path d="M 538 150 C 585 150, 570 284, 616 284" marker-end="url(#arrow)"/>
+    <path d="M 836 96  C 885 96,  868 190, 914 190" marker-end="url(#arrow)"/>
+    <path d="M 836 190 C 875 190, 875 190, 914 190" marker-end="url(#arrow)"/>
+    <path d="M 836 284 C 885 284, 868 190, 914 190" marker-end="url(#arrow)"/>
+    <path d="M 1134 190 C 1170 190, 1170 190, 1204 190" marker-end="url(#arrow)"/>
+    <path d="M 1314 246 C 1314 330, 210 300, 210 384" marker-end="url(#arrow)"/>
+    <path d="M 320 440 C 358 440, 358 440, 394 440" marker-end="url(#arrow)"/>
+    <path d="M 614 440 C 652 440, 652 440, 688 440" marker-end="url(#arrow)"/>
+    <path d="M 908 440 C 950 440, 950 440, 990 440" marker-end="url(#arrow)"/>
+  </g>
+
+  <!-- 1. Load Configuration -->
+  <g filter="url(#card)">
+    <rect x="34" y="104" width="216" height="92" rx="12" fill="#ffffff" stroke="#e5e7eb"/>
+    <rect x="34" y="104" width="6" height="92" rx="3" fill="#10b981"/>
+    <rect x="52" y="122" width="34" height="34" rx="8" fill="#ecfdf5"/>
+    <text x="69" y="147" font-size="16" font-weight="700" fill="#059669" text-anchor="middle">1</text>
+    <text x="98" y="136" font-size="14" font-weight="600" fill="#111827">Load Configuration</text>
+    <text x="98" y="154" font-size="11.5" fill="#6b7280">Pydantic validation</text>
+    <text x="52" y="184" font-size="10.5" fill="#059669" font-weight="600">PYTHON</text>
+    <circle cx="250" cy="150" r="5" fill="#ffffff" stroke="#9aa3ad" stroke-width="2"/>
+  </g>
+
+  <!-- 2. Expand Queries -->
+  <g filter="url(#card)">
+    <rect x="322" y="104" width="216" height="92" rx="12" fill="#ffffff" stroke="#e5e7eb"/>
+    <rect x="322" y="104" width="6" height="92" rx="3" fill="#8b5cf6"/>
+    <rect x="340" y="122" width="34" height="34" rx="8" fill="#f5f3ff"/>
+    <text x="357" y="147" font-size="16" font-weight="700" fill="#7c3aed" text-anchor="middle">2</text>
+    <text x="386" y="136" font-size="14" font-weight="600" fill="#111827">Expand Queries</text>
+    <text x="386" y="154" font-size="11.5" fill="#6b7280">3 query families</text>
+    <text x="340" y="184" font-size="10.5" fill="#7c3aed" font-weight="600">LLM</text>
+    <circle cx="322" cy="150" r="5" fill="#ffffff" stroke="#9aa3ad" stroke-width="2"/>
+    <circle cx="538" cy="150" r="5" fill="#ffffff" stroke="#9aa3ad" stroke-width="2"/>
+  </g>
+
+  <!-- 3a. Market search -->
+  <g filter="url(#card)">
+    <rect x="620" y="64" width="216" height="64" rx="12" fill="#ffffff" stroke="#e5e7eb"/>
+    <rect x="620" y="64" width="6" height="64" rx="3" fill="#3b82f6"/>
+    <rect x="636" y="78" width="30" height="30" rx="8" fill="#eff6ff"/>
+    <circle cx="649" cy="91" r="6" fill="none" stroke="#2563eb" stroke-width="2"/>
+    <line x1="653.5" y1="95.5" x2="659" y2="101" stroke="#2563eb" stroke-width="2" stroke-linecap="round"/>
+    <text x="676" y="88" font-size="13" font-weight="600" fill="#111827">Search: Market</text>
+    <text x="676" y="105" font-size="11" fill="#6b7280">trends · adoption · use cases</text>
+    <text x="676" y="121" font-size="9.5" fill="#2563eb" font-weight="600">DATAFORSEO</text>
+    <circle cx="620" cy="96" r="5" fill="#ffffff" stroke="#9aa3ad" stroke-width="2"/>
+    <circle cx="836" cy="96" r="5" fill="#ffffff" stroke="#9aa3ad" stroke-width="2"/>
+  </g>
+
+  <!-- 3b. Intent search -->
+  <g filter="url(#card)">
+    <rect x="620" y="158" width="216" height="64" rx="12" fill="#ffffff" stroke="#e5e7eb"/>
+    <rect x="620" y="158" width="6" height="64" rx="3" fill="#3b82f6"/>
+    <rect x="636" y="172" width="30" height="30" rx="8" fill="#eff6ff"/>
+    <circle cx="649" cy="185" r="6" fill="none" stroke="#2563eb" stroke-width="2"/>
+    <line x1="653.5" y1="189.5" x2="659" y2="195" stroke="#2563eb" stroke-width="2" stroke-linecap="round"/>
+    <text x="676" y="182" font-size="13" font-weight="600" fill="#111827">Search: Intent</text>
+    <text x="676" y="199" font-size="11" fill="#6b7280">pricing · ROI · compliance</text>
+    <text x="676" y="215" font-size="9.5" fill="#2563eb" font-weight="600">DATAFORSEO</text>
+    <circle cx="620" cy="190" r="5" fill="#ffffff" stroke="#9aa3ad" stroke-width="2"/>
+    <circle cx="836" cy="190" r="5" fill="#ffffff" stroke="#9aa3ad" stroke-width="2"/>
+  </g>
+
+  <!-- 3c. Competitor search -->
+  <g filter="url(#card)">
+    <rect x="620" y="252" width="216" height="64" rx="12" fill="#ffffff" stroke="#e5e7eb"/>
+    <rect x="620" y="252" width="6" height="64" rx="3" fill="#3b82f6"/>
+    <rect x="636" y="266" width="30" height="30" rx="8" fill="#eff6ff"/>
+    <circle cx="649" cy="279" r="6" fill="none" stroke="#2563eb" stroke-width="2"/>
+    <line x1="653.5" y1="283.5" x2="659" y2="289" stroke="#2563eb" stroke-width="2" stroke-linecap="round"/>
+    <text x="676" y="276" font-size="13" font-weight="600" fill="#111827">Search: Competitor</text>
+    <text x="676" y="293" font-size="11" fill="#6b7280">launches · case studies</text>
+    <text x="676" y="309" font-size="9.5" fill="#2563eb" font-weight="600">DATAFORSEO</text>
+    <circle cx="620" cy="284" r="5" fill="#ffffff" stroke="#9aa3ad" stroke-width="2"/>
+    <circle cx="836" cy="284" r="5" fill="#ffffff" stroke="#9aa3ad" stroke-width="2"/>
+  </g>
+
+  <!-- 4. Normalize Evidence -->
+  <g filter="url(#card)">
+    <rect x="918" y="144" width="216" height="92" rx="12" fill="#ffffff" stroke="#e5e7eb"/>
+    <rect x="918" y="144" width="6" height="92" rx="3" fill="#10b981"/>
+    <rect x="936" y="162" width="34" height="34" rx="8" fill="#ecfdf5"/>
+    <text x="953" y="187" font-size="16" font-weight="700" fill="#059669" text-anchor="middle">4</text>
+    <text x="982" y="176" font-size="14" font-weight="600" fill="#111827">Normalize Evidence</text>
+    <text x="982" y="194" font-size="11.5" fill="#6b7280">dedupe · IDs e1…eN</text>
+    <text x="936" y="224" font-size="10.5" fill="#059669" font-weight="600">PYTHON</text>
+    <circle cx="918" cy="190" r="5" fill="#ffffff" stroke="#9aa3ad" stroke-width="2"/>
+    <circle cx="1134" cy="190" r="5" fill="#ffffff" stroke="#9aa3ad" stroke-width="2"/>
+  </g>
+
+  <!-- 5. Aggregate Signals -->
+  <g filter="url(#card)">
+    <rect x="1208" y="144" width="216" height="92" rx="12" fill="#ffffff" stroke="#e5e7eb"/>
+    <rect x="1208" y="144" width="6" height="92" rx="3" fill="#10b981"/>
+    <rect x="1226" y="162" width="34" height="34" rx="8" fill="#ecfdf5"/>
+    <text x="1243" y="187" font-size="16" font-weight="700" fill="#059669" text-anchor="middle">5</text>
+    <text x="1272" y="176" font-size="14" font-weight="600" fill="#111827">Aggregate Signals</text>
+    <text x="1272" y="194" font-size="11.5" fill="#6b7280">all counts computed here</text>
+    <text x="1226" y="224" font-size="10.5" fill="#059669" font-weight="600">PYTHON</text>
+    <circle cx="1208" cy="190" r="5" fill="#ffffff" stroke="#9aa3ad" stroke-width="2"/>
+    <circle cx="1314" cy="246" r="5" fill="#ffffff" stroke="#9aa3ad" stroke-width="2"/>
+  </g>
+
+  <!-- 6. Trend Analysis -->
+  <g filter="url(#card)">
+    <rect x="104" y="394" width="216" height="92" rx="12" fill="#ffffff" stroke="#e5e7eb"/>
+    <rect x="104" y="394" width="6" height="92" rx="3" fill="#8b5cf6"/>
+    <rect x="122" y="412" width="34" height="34" rx="8" fill="#f5f3ff"/>
+    <text x="139" y="437" font-size="16" font-weight="700" fill="#7c3aed" text-anchor="middle">6</text>
+    <text x="168" y="426" font-size="14" font-weight="600" fill="#111827">Trend Analysis</text>
+    <text x="168" y="444" font-size="11.5" fill="#6b7280">stage: early / mid / late</text>
+    <text x="122" y="474" font-size="10.5" fill="#7c3aed" font-weight="600">LLM · evidence refs validated</text>
+    <circle cx="210" cy="394" r="5" fill="#ffffff" stroke="#9aa3ad" stroke-width="2"/>
+    <circle cx="320" cy="440" r="5" fill="#ffffff" stroke="#9aa3ad" stroke-width="2"/>
+  </g>
+
+  <!-- 7. GTM Recommendations -->
+  <g filter="url(#card)">
+    <rect x="398" y="394" width="216" height="92" rx="12" fill="#ffffff" stroke="#e5e7eb"/>
+    <rect x="398" y="394" width="6" height="92" rx="3" fill="#8b5cf6"/>
+    <rect x="416" y="412" width="34" height="34" rx="8" fill="#f5f3ff"/>
+    <text x="433" y="437" font-size="16" font-weight="700" fill="#7c3aed" text-anchor="middle">7</text>
+    <text x="462" y="426" font-size="14" font-weight="600" fill="#111827">GTM Plan</text>
+    <text x="462" y="444" font-size="11.5" fill="#6b7280">Top 3 plays · prioritized</text>
+    <text x="416" y="474" font-size="10.5" fill="#7c3aed" font-weight="600">LLM</text>
+    <circle cx="398" cy="440" r="5" fill="#ffffff" stroke="#9aa3ad" stroke-width="2"/>
+    <circle cx="614" cy="440" r="5" fill="#ffffff" stroke="#9aa3ad" stroke-width="2"/>
+  </g>
+
+  <!-- 8. Executive Summary -->
+  <g filter="url(#card)">
+    <rect x="692" y="394" width="216" height="92" rx="12" fill="#ffffff" stroke="#e5e7eb"/>
+    <rect x="692" y="394" width="6" height="92" rx="3" fill="#8b5cf6"/>
+    <rect x="710" y="412" width="34" height="34" rx="8" fill="#f5f3ff"/>
+    <text x="727" y="437" font-size="16" font-weight="700" fill="#7c3aed" text-anchor="middle">8</text>
+    <text x="756" y="426" font-size="14" font-weight="600" fill="#111827">Executive Summary</text>
+    <text x="756" y="444" font-size="11.5" fill="#6b7280">≤500 words · to stdout</text>
+    <text x="710" y="474" font-size="10.5" fill="#7c3aed" font-weight="600">LLM</text>
+    <circle cx="692" cy="440" r="5" fill="#ffffff" stroke="#9aa3ad" stroke-width="2"/>
+    <circle cx="908" cy="440" r="5" fill="#ffffff" stroke="#9aa3ad" stroke-width="2"/>
+  </g>
+
+  <!-- Outputs node -->
+  <g filter="url(#card)">
+    <rect x="994" y="380" width="252" height="120" rx="12" fill="#0f172a"/>
+    <text x="1014" y="408" font-size="13" font-weight="700" fill="#e2e8f0">output/</text>
+    <g font-size="11" fill="#94a3b8" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace">
+      <text x="1014" y="429">queries.json · evidence.json/.csv</text>
+      <text x="1014" y="446">signals.json · analysis.json</text>
+      <text x="1014" y="463">gtm_plan.md · executive_summary.md</text>
+      <text x="1014" y="480">run_metadata.json</text>
+    </g>
+    <circle cx="994" cy="440" r="5" fill="#0f172a" stroke="#9aa3ad" stroke-width="2"/>
+  </g>
+
+  <!-- guardrail annotation -->
+  <g>
+    <rect x="104" y="548" width="1142" height="84" rx="10" fill="#fffbeb" stroke="#fcd34d"/>
+    <text x="126" y="574" font-size="13" font-weight="700" fill="#92400e">The counting rule</text>
+    <text x="126" y="596" font-size="12.5" fill="#78350f">Green (Python) nodes compute every number in the system. Purple (LLM) nodes receive those counts read-only, must cite</text>
+    <text x="126" y="614" font-size="12.5" fill="#78350f">evidence IDs (e1…eN), and can never invent or modify a count. Hallucinated IDs are dropped and logged in Stage 6.</text>
+  </g>
+
+  <text x="34" y="700" font-size="11" fill="#9ca3af">Rebuilt from the original AirOps workflow prototype — see docs/air_ops_prototype.md</text>
+</svg>

@@ -1,0 +1,238 @@
+# Enterprise Demand Radar
+
+**Search intelligence → buying-cycle detection → prioritized GTM actions.**
+
+A runnable CLI that continuously researches a market, detects enterprise
+buying signals, classifies buying-cycle shifts, monitors competitor GTM
+activity, and converts the evidence into prioritized GTM recommendations.
+
+```bash
+demand-radar run --config config/elevenlabs.example.yaml
+```
+
+![Enterprise Demand Radar pipeline — 8-stage waterfall with fan-out search branches](docs/images/workflow.svg)
+
+## What It Does
+
+Given a brand, seed keywords, competitors, and ICP roles, the radar:
+
+1. Expands seeds into market, intent, and competitor search queries (LLM)
+2. Executes the searches (pluggable search provider)
+3. Normalizes and deduplicates results into evidence rows with stable IDs (Python)
+4. Counts theme, query-type, and domain signals deterministically (Python)
+5. Classifies trends, buying-cycle stage, and competitor moves (LLM, evidence-referenced)
+6. Produces a Markdown GTM plan with a prioritized Top 3 plays (LLM)
+7. Prints a ≤500-word executive summary and saves all artifacts to `output/`
+
+## Why I Built It
+
+Demand generation decisions are usually argued from anecdote. I wanted a
+system where every GTM recommendation traces back to a countable, inspectable
+evidence row — and where the counting is done by code that can be tested, not
+by a model that can hallucinate. It's the same discipline I apply to client
+work: confidence has to match evidence.
+
+## Project Inspiration: From AirOps Prototype to CLI
+
+V1 of this system was an AirOps workflow built around an ElevenLabs
+enterprise marketing use case; I then used it for Pontiac DSP, where it
+accelerated our GTM efforts. This repository is the ground-up rebuild as a
+standalone, testable Python package — same pipeline shape, no AirOps
+dependency. The full story, including the original workflow diagram and the
+reasons for the rebuild (portability, testability, evidence integrity,
+provider independence, version control, model routing, future CRM/analytics
+joins), is in [`docs/air_ops_prototype.md`](docs/air_ops_prototype.md).
+
+## Architecture
+
+The workflow diagram above shows the eight stages: config validation feeds
+LLM query expansion, which fans out into market/intent/competitor search
+branches (DataForSEO) that merge into deterministic normalization and signal
+aggregation, before the three LLM interpretation stages produce the GTM plan
+and executive summary. Green nodes are deterministic Python; purple nodes are
+LLM tasks constrained to Python-computed counts and validated evidence IDs.
+
+Full module map and stage detail: [`docs/architecture.md`](docs/architecture.md).
+
+## Evidence First, Interpretation Second
+
+The architectural principle of the whole system:
+
+> **Evidence first. Interpretation second.**
+
+Deterministic Python owns search-result processing, URL normalization,
+deduplication, evidence IDs, keyword/theme matching, counts, aggregation,
+timestamps, and persistence. The LLM owns query expansion, trend
+interpretation, buying-stage classification, competitor interpretation, GTM
+recommendations, and the executive summary.
+
+**The LLM never invents signal counts.** Counts are computed in
+`processing/signals.py`, passed to the model as read-only input, and the
+prompts forbid modifying them. Every LLM conclusion must reference evidence
+IDs (`e1`, `e2`, …); IDs that don't exist are dropped and logged by the
+pipeline's reference validator.
+
+## How Buying Signals Are Classified
+
+| Stage | The buyer is… |
+|---|---|
+| **Early** | learning about the category, opportunity, use case, or strategic viability |
+| **Mid** | evaluating economics, implementation, integration, security, compliance, or requirements |
+| **Late** | comparing vendors, examining proof, benchmarking performance, consuming case studies, or preparing procurement |
+
+The trend-analysis stage assigns each detected buying signal one of these
+stages, with supporting evidence IDs, into `output/analysis.json`.
+
+## Example ElevenLabs Configuration
+
+[`config/elevenlabs.example.yaml`](config/elevenlabs.example.yaml) tracks
+enterprise voice AI for ElevenLabs against six competitors across five ICP
+roles. **ElevenLabs is an example/portfolio use case — this project does not
+imply any employment or affiliation with ElevenLabs.** Swap the brand,
+keywords, competitors, and ICP roles to point the radar at any B2B company.
+
+## Quickstart
+
+```bash
+git clone <this repo> && cd enterprise-demand-radar
+python -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+
+# no keys needed:
+demand-radar demo
+
+# live run:
+cp .env.example .env   # add your keys here; .env is gitignored
+export ANTHROPIC_API_KEY=sk-ant-...
+export DATAFORSEO_LOGIN=... DATAFORSEO_PASSWORD=...   # primary search provider
+# (or SERPER_API_KEY=... with search.provider: serper)
+demand-radar run --config config/elevenlabs.example.yaml
+```
+
+`python -m demand_radar run --config ...` works too.
+
+## Demo Mode
+
+```bash
+demand-radar demo
+```
+
+Runs the full pipeline with `MockSearchProvider` (seeded synthetic SERPs on
+fake `*.example.com` domains) and `MockLLMProvider` (canned, clearly labeled
+synthetic analysis). No API keys, no network. Reviewers can see the entire
+system work in seconds; every synthetic artifact is labeled as such.
+
+## Anthropic Configuration
+
+The default LLM provider is the Anthropic API via the official Python SDK.
+Set `ANTHROPIC_API_KEY` (see `.env.example`). Models are configured centrally
+per task — never hardcoded in pipeline code:
+
+```yaml
+llm:
+  provider: anthropic
+  routing_mode: static
+  tasks:
+    query_expansion:     { model: claude-haiku-4-5,  reasoning_level: low }
+    trend_analysis:      { model: claude-sonnet-5,  reasoning_level: high }
+    gtm_recommendations: { model: claude-sonnet-5,  reasoning_level: medium }
+    executive_summary:   { model: claude-haiku-4-5,  reasoning_level: low }
+```
+
+Structured tasks (query expansion, trend analysis) are validated against
+Pydantic schemas with one automatic repair retry. No hidden chain-of-thought
+is stored — only final structured outputs.
+
+## Model Routing
+
+`LLMRouter` decouples the pipeline from any single model or vendor:
+`static` routing (implemented) maps tasks to models from config; `adaptive`
+routing is reserved for a future external routing service that selects
+models by task complexity, cost, latency, and confidence requirements.
+`ExternalRouterProvider` is the integration stub. Details:
+[`docs/model_routing.md`](docs/model_routing.md).
+
+## Search Provider Configuration
+
+```yaml
+search:
+  provider: dataforseo   # production default; or: serper | mock
+  results_per_query: 10
+  language_code: en      # DataForSEO locale (ignored by other providers)
+  location_code: 2840    # United States
+```
+
+**DataForSEO is the primary production provider** (`DataForSEOSearchProvider`,
+Google organic via the SERP API live mode, Basic auth, retry/backoff).
+**Serper remains a supported alternative** (`SerperSearchProvider`), and
+`MockSearchProvider` needs no credentials. Additional adapters (SerpAPI,
+Tavily, Brave) implement the same two-method `SearchProvider` interface.
+
+### Credentials can never ship with a shared config
+
+API keys live in environment variables only:
+
+| Provider | Environment variables |
+|---|---|
+| DataForSEO | `DATAFORSEO_LOGIN`, `DATAFORSEO_PASSWORD` |
+| Serper | `SERPER_API_KEY` |
+| Anthropic | `ANTHROPIC_API_KEY` |
+
+This is enforced, not just conventional: `.env` is gitignored, and the
+config loader **refuses to load any config file containing credential-like
+fields** (`api_key`, `token`, `password`, ...) with a clear error. Configs
+are therefore always safe to share, commit, or download — there is no way
+to embed a key in one.
+
+## Outputs
+
+Every run writes to `output/`:
+
+`queries.json` · `evidence.json` · `evidence.csv` · `signals.json` ·
+`analysis.json` · `gtm_plan.md` · `executive_summary.md` ·
+`run_metadata.json` (run ID, providers, models used, row counts, timing).
+
+The executive summary is also printed to stdout at the end of the run.
+
+## Testing
+
+```bash
+pytest
+```
+
+Coverage includes: URL normalization, deduplication, evidence-ID generation,
+theme matching, signal counting, config validation, mock provider behavior,
+full mock pipeline artifacts, evidence-reference integrity, and
+invalid-LLM-response handling.
+
+## Historical Prototype
+
+`examples/historical_prototype_output.json` preserves theme counts from the
+original AirOps prototype run, and `examples/historical_gtm_plan.md` the
+three plays it produced (ROI calculator → compliance framework → performance
+proof pack). Both are labeled **UNVERIFIED HISTORICAL PROTOTYPE OUTPUT**:
+the underlying SERP rows were not retained, so those numbers demonstrate the
+output shape only — they are not validated current market findings, and the
+plays are not current ElevenLabs strategy.
+
+## Production Roadmap
+
+- **Run-over-run trend deltas** — `history.py` ships the comparison function
+  and `HistoryStore` interface; persisting runs will let the radar say
+  "pricing interest is increasing," not just "pricing mentions exist."
+- Additional search adapters (SerpAPI, Tavily, Brave) alongside DataForSEO and Serper
+- Additional LLM providers (OpenAI, Gemini, local) behind the same interface
+- Adaptive model routing via the external router service
+- CRM/analytics joins so buying signals connect to pipeline data
+- Scheduled runs (cron/GitHub Actions) matching the configured `timeframe`
+
+## Portfolio Context
+
+This project demonstrates enterprise demand generation strategy, GTM systems
+thinking, market intelligence, buying-cycle analysis, Python orchestration,
+LLM architecture, prompt design, product marketing, and evidence-based
+campaign prioritization.
+
+Built by [Andrew F. Llewellyn](https://andrewfllewellyn.com/) — PMP-certified
+project and marketing director. ElevenLabs is referenced solely as an example
+configuration.
