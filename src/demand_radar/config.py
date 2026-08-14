@@ -49,7 +49,6 @@ class RadarConfig(BaseModel):
     competitors: list[str] = Field(default_factory=list)
     icp_roles: list[str] = Field(default_factory=list)
     timeframe: str = "weekly"
-    results_per_query: int = Field(default=10, ge=1, le=50)
     themes_file: str | None = None
 
     search: SearchConfig = Field(default_factory=SearchConfig)

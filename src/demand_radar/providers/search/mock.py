@@ -62,7 +62,11 @@ class MockSearchProvider(SearchProvider):
         for i in range(limit):
             title_tpl, snippet_tpl = _TEMPLATES[(seed + i) % len(_TEMPLATES)]
             domain = _DOMAINS[rng.randrange(len(_DOMAINS))]
-            slug = f"{abs(hash((query, i))) % 100000}"
+            # Python's built-in hash() is salted per-process for str/tuple
+            # inputs (PYTHONHASHSEED), so it can't back the "reproducible
+            # across runs" guarantee above. Draw from the already-seeded
+            # random.Random stream instead, which is stable by seed alone.
+            slug = f"{rng.randrange(100000)}"
             results.append(
                 {
                     "title": title_tpl.format(q=query),

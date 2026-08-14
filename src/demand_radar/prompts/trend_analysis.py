@@ -12,9 +12,37 @@ from ..schemas.signals import SignalSummary
 _MAX_ROWS = 120
 
 
+def _sample_evidence(rows: list[EvidenceRow], max_rows: int) -> list[EvidenceRow]:
+    """Cap the evidence sample without starving any query type.
+
+    Stage 3 appends all market rows, then all intent rows, then competitor
+    rows, so a positional ``rows[:max_rows]`` slice can silently exclude an
+    entire query type — usually competitor — from what the model sees, even
+    though ``signals.json`` still counts it. Round-robin across types
+    instead, preserving each type's internal order, so a truncated sample
+    stays representative and competitor moves have evidence to cite.
+    """
+    if len(rows) <= max_rows:
+        return rows
+    buckets: dict[str, list[EvidenceRow]] = {}
+    order: list[str] = []
+    for row in rows:
+        if row.query_type not in buckets:
+            buckets[row.query_type] = []
+            order.append(row.query_type)
+        buckets[row.query_type].append(row)
+    sampled: list[EvidenceRow] = []
+    while len(sampled) < max_rows and any(buckets[qt] for qt in order):
+        for qt in order:
+            if buckets[qt] and len(sampled) < max_rows:
+                sampled.append(buckets[qt].pop(0))
+    return sampled
+
+
 def _evidence_block(rows: list[EvidenceRow]) -> str:
+    sampled = _sample_evidence(rows, _MAX_ROWS)
     lines = []
-    for row in rows[:_MAX_ROWS]:
+    for row in sampled:
         title = row.title[:110]
         snippet = row.snippet[:180]
         comp = f" competitor={row.competitor_name}" if row.competitor_name else ""
@@ -22,8 +50,8 @@ def _evidence_block(rows: list[EvidenceRow]) -> str:
             f"[{row.evidence_id}] ({row.query_type}{comp}) {title} — {snippet} "
             f"({row.domain})"
         )
-    if len(rows) > _MAX_ROWS:
-        lines.append(f"... plus {len(rows) - _MAX_ROWS} more rows on disk.")
+    if len(rows) > len(sampled):
+        lines.append(f"... plus {len(rows) - len(sampled)} more rows on disk.")
     return "\n".join(lines)
 
 

@@ -32,7 +32,6 @@ icp_roles:
   - Head of Compliance
 
 timeframe: weekly
-results_per_query: 10
 
 search:
   # Providers: dataforseo (production default), serper (alternative),

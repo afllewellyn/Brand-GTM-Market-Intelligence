@@ -77,6 +77,19 @@ def _validate_evidence_refs(
 class Pipeline:
     """Runs the eight-stage demand radar for one configuration."""
 
+    # Filenames each entry point (re)writes, in write order. Cleared before
+    # a run starts so a stage failure leaves visibly missing files instead
+    # of silently mixing this run's partial output with a prior run's.
+    _RUN_ARTIFACTS = (
+        "queries.json", "evidence.json", "evidence.csv", "signals.json",
+        "analysis.json", "gtm_plan.md", "executive_summary.md",
+        "run_metadata.json",
+    )
+    _ANALYZE_ARTIFACTS = (
+        "signals.json", "analysis.json", "gtm_plan.md",
+        "executive_summary.md", "run_metadata.json",
+    )
+
     def __init__(
         self,
         config: RadarConfig,
@@ -92,11 +105,15 @@ class Pipeline:
         self._echo = echo
         self._metadata: dict = {}
 
-    # -- small helper -------------------------------------------------
+    # -- small helpers --------------------------------------------------
     def _say(self, msg: str) -> None:
         if self._echo:
             print(msg)
         log.info(msg)
+
+    def _clear_artifacts(self, names: tuple[str, ...]) -> None:
+        for name in names:
+            (self.out / name).unlink(missing_ok=True)
 
     # -- Stage 1 ------------------------------------------------------
     def stage1_show_config(self) -> None:
@@ -126,7 +143,7 @@ class Pipeline:
     # -- Stage 3 ------------------------------------------------------
     def stage3_execute_searches(self, queries: QuerySet) -> list[dict]:
         self._say("[3/8] Collecting search evidence...")
-        limit = self.config.search.results_per_query or self.config.results_per_query
+        limit = self.config.search.results_per_query
         raw: list[dict] = []
         plan = [
             ("market", queries.market_queries, None),
@@ -163,6 +180,13 @@ class Pipeline:
     def stage4_normalize(self, raw: list[dict]) -> list[EvidenceRow]:
         self._say("[4/8] Normalizing and deduplicating evidence...")
         rows = dedupe_and_assign_ids(raw)
+        if not rows:
+            raise SearchError(
+                "No evidence collected: every search query returned no "
+                "results or failed. Check search provider credentials and "
+                "connectivity before re-running — a report built on zero "
+                "evidence would look valid but rest on nothing."
+            )
         write_json(
             self.out / "evidence.json", [r.model_dump() for r in rows]
         )
@@ -228,6 +252,7 @@ class Pipeline:
     # -- Orchestration ------------------------------------------------
     def run(self) -> str:
         """Execute all eight stages; returns the executive summary text."""
+        self._clear_artifacts(self._RUN_ARTIFACTS)
         run_id = new_run_id()
         started = utc_now_iso()
         self.stage1_show_config()
@@ -244,6 +269,7 @@ class Pipeline:
 
     def analyze_only(self, rows: list[EvidenceRow]) -> str:
         """Stages 5-8 over pre-collected evidence (``demand-radar analyze``)."""
+        self._clear_artifacts(self._ANALYZE_ARTIFACTS)
         run_id = new_run_id()
         started = utc_now_iso()
         self._metadata["normalized_evidence_rows"] = len(rows)
