@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "enterprise-demand-radar"
+version = "0.1.0"
+description = "Search intelligence -> buying-cycle detection -> prioritized GTM actions."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Andrew F. Llewellyn" }]
+requires-python = ">=3.10"
+dependencies = [
+    "anthropic>=0.40",
+    "pydantic>=2.5,<3",
+    "typer>=0.12",
+    "PyYAML>=6.0",
+    "requests>=2.31",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+demand-radar = "demand_radar.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

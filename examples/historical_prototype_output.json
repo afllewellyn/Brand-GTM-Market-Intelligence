@@ -1,0 +1,11 @@
+{
+  "label": "UNVERIFIED HISTORICAL PROTOTYPE OUTPUT",
+  "warning": "These theme counts were produced by the original AirOps workflow prototype. The underlying SERP rows were NOT retained, so these numbers cannot be re-verified and must not be interpreted as validated current market findings. They are preserved only to show the shape of the original output.",
+  "source": "AirOps workflow prototype (V1), ElevenLabs example use case",
+  "theme_counts": {
+    "pricing_roi": 75,
+    "compliance_security": 24,
+    "performance_validation": 38,
+    "voice_agents": 136
+  }
+}
