@@ -194,6 +194,24 @@ Every run writes to `output/`:
 
 The executive summary is also printed to stdout at the end of the run.
 
+**Each run overwrites `output/`** with a fresh snapshot — nothing from a
+previous run is read or retained. This is a point-in-time market radar, not
+a trend tracker: it answers "what does the market look like right now,"
+not "how has it moved since last time." Because search results, signal
+counts, and the resulting GTM plan are all a function of what's on the web
+at run time, **outputs will vary from run to run** — sometimes
+meaningfully, since search rankings and content shift. Treat each report as
+input for near-term decisions rather than a stable baseline, and re-run it
+close to when you intend to act on it.
+
+Run-over-run comparison (e.g. "pricing mentions increased from 19 to 31")
+is not implemented yet — see [Production Roadmap](#production-roadmap).
+`history.py` ships the deterministic delta function
+(`compare_theme_counts`), but there's no persistence layer behind it, so
+nothing is saved between runs. If you want to track direction over time
+today, save off `output/signals.json` after each run yourself and diff it
+against a prior one.
+
 ## Testing
 
 ```bash
