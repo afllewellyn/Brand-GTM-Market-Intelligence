@@ -12,7 +12,7 @@ def _rows():
     raw = [
         {
             "query": "q1", "query_type": "intent",
-            "title": "Enterprise voice AI pricing and ROI",
+            "title": "Enterprise platform pricing and ROI",
             "snippet": "Total cost of ownership and payback period.",
             "url": "https://a.example.com/1", "domain": "a.example.com",
             "source_type": "serp", "competitor_name": None,
@@ -20,18 +20,18 @@ def _rows():
         },
         {
             "query": "q2", "query_type": "market",
-            "title": "Voice agents in the contact center",
-            "snippet": "AI agents reshape customer experience.",
+            "title": "Buyer's guide: how teams shortlist vendors",
+            "snippet": "What procurement asks for in an RFP.",
             "url": "https://b.example.com/2", "domain": "b.example.com",
             "source_type": "serp", "competitor_name": None,
             "retrieved_at": "2026-01-01T00:00:00+00:00",
         },
         {
             "query": "q3", "query_type": "competitor",
-            "title": "PolyAI case study: production benchmark",
+            "title": "Competitor case study: production benchmark",
             "snippet": "Latency and accuracy results at scale.",
             "url": "https://c.example.com/3", "domain": "c.example.com",
-            "source_type": "serp", "competitor_name": "PolyAI",
+            "source_type": "serp", "competitor_name": "Competitor Inc",
             "retrieved_at": "2026-01-01T00:00:00+00:00",
         },
     ]
@@ -65,7 +65,19 @@ def test_aggregate_query_type_and_domain_counts():
 
 
 def test_expected_theme_hits():
+    """The shipped default taxonomy must classify generic B2B buying signals.
+
+    Rows here are deliberately market-neutral: the default taxonomy is the
+    fallback for any category, so it has to earn its counts without help from
+    one market's vocabulary.
+    """
     signals = aggregate_signals(_rows())
     assert signals.theme_counts["pricing_roi"] == 1
-    assert signals.theme_counts["voice_agents"] >= 1
+    assert signals.theme_counts["vendor_evaluation"] >= 1
     assert signals.theme_counts["performance_validation"] == 1
+
+
+def test_default_taxonomy_is_market_agnostic():
+    """Guards the clean-start property: a fresh clone must not inherit the
+    demo's voice-AI market through the fallback taxonomy."""
+    assert not {"voice_agents", "contact_center", "localization"} & set(DEFAULT_THEMES)

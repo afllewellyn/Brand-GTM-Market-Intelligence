@@ -1,6 +1,15 @@
-# Theme taxonomy used by the deterministic signal aggregator.
+# Default theme taxonomy — market-agnostic B2B buying signals.
+#
 # Matching is case-insensitive substring matching against title + snippet.
-# Counts produced from this file are the ONLY counts the LLM may cite.
+# Counts produced from this file are the ONLY counts the LLM may cite, so the
+# taxonomy is the lens through which the whole run sees the market.
+#
+# This file is deliberately generic so a fresh clone produces meaningful counts
+# for any category. It is a starting point, not a finished taxonomy: a set of
+# themes tuned to YOUR market will always read better. Copy this file, edit the
+# keywords, and point at it with `themes_file:` in your run config. Stage 5
+# warns when fewer than 40% of evidence rows match any theme, which is the
+# signal that the taxonomy does not fit the market being searched.
 
 themes:
   pricing_roi:
@@ -12,6 +21,7 @@ themes:
     - tco
     - payback
     - economics
+    - budget
   compliance_security:
     - compliance
     - security
@@ -23,6 +33,7 @@ themes:
     - governance
     - data residency
     - risk
+    - audit
   performance_validation:
     - performance
     - latency
@@ -33,17 +44,7 @@ themes:
     - case study
     - scale
     - production
-  voice_agents:
-    - voice agent
-    - voice agents
-    - ai agent
-    - ai agents
-    - phone agent
-  contact_center:
-    - contact center
-    - call center
-    - cx
-    - customer experience
+    - sla
   implementation:
     - implementation
     - integration
@@ -51,6 +52,8 @@ themes:
     - deployment
     - migration
     - architecture
+    - onboarding
+    - rollout
   comparison:
     - " vs "
     - versus
@@ -58,9 +61,23 @@ themes:
     - alternatives
     - compare
     - comparison
-  localization:
-    - localization
-    - multilingual
-    - languages
-    - translation
-    - dubbing
+  vendor_evaluation:
+    - rfp
+    - rfi
+    - shortlist
+    - buyer's guide
+    - buyers guide
+    - evaluation
+    - review
+    - g2
+    - gartner
+    - forrester
+    - procurement
+  adoption_enablement:
+    - training
+    - support
+    - documentation
+    - best practices
+    - adoption
+    - change management
+    - professional services

@@ -166,10 +166,23 @@ def _search_provider_for_metadata(cfg: RadarConfig) -> SearchProvider:
         return _UnusedSearchProvider(cfg.search.provider)
 
 
+#: Taxonomy for the demo's voice-AI market. Lives in the package, not in
+#: config/, because config/ holds files users copy for their own brand and
+#: nothing there should be tied to one market.
+DEMO_THEMES_FILE = Path(__file__).parent / "demo_themes.yaml"
+
+
 def _demo_config() -> RadarConfig:
-    """The ElevenLabs example configuration with all providers mocked."""
+    """The ElevenLabs example configuration with all providers mocked.
+
+    Demo mode is the one place a real brand appears in a run: its output is
+    banner-labeled synthetic, so a recognizable market makes the worked
+    example easier to follow than an invented one would. Everything a user
+    copies to run their own brand is market-agnostic.
+    """
     return RadarConfig(
         brand_name="ElevenLabs",
+        themes_file=str(DEMO_THEMES_FILE),
         primary_markets=["North America"],
         base_keywords=[
             "enterprise voice AI",

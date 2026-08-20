@@ -1,0 +1,73 @@
+# Theme taxonomy for demo mode only.
+#
+# Demo mode runs the enterprise voice AI use case the original AirOps
+# prototype was built around, so it needs a taxonomy for that market rather
+# than the market-agnostic default in config/themes.yaml. Keeping it inside
+# the package rather than in config/ is deliberate: config/ holds files users
+# copy and edit for their own brand, and nothing there should be tied to one
+# market.
+#
+# Every number this produces in demo mode is derived from synthetic search
+# results. It is not a market finding.
+
+themes:
+  pricing_roi:
+    - pricing
+    - price
+    - cost
+    - roi
+    - return on investment
+    - tco
+    - payback
+    - economics
+  compliance_security:
+    - compliance
+    - security
+    - privacy
+    - gdpr
+    - ccpa
+    - soc 2
+    - hipaa
+    - governance
+    - data residency
+    - risk
+  performance_validation:
+    - performance
+    - latency
+    - reliability
+    - benchmark
+    - accuracy
+    - uptime
+    - case study
+    - scale
+    - production
+  voice_agents:
+    - voice agent
+    - voice agents
+    - ai agent
+    - ai agents
+    - phone agent
+  contact_center:
+    - contact center
+    - call center
+    - customer experience
+  implementation:
+    - implementation
+    - integration
+    - api
+    - deployment
+    - migration
+    - architecture
+  comparison:
+    - " vs "
+    - versus
+    - alternative
+    - alternatives
+    - compare
+    - comparison
+  localization:
+    - localization
+    - multilingual
+    - languages
+    - translation
+    - dubbing
