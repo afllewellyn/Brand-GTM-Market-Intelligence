@@ -13,6 +13,7 @@ from demand_radar.providers.llm.mock import MockLLMProvider
 from demand_radar.providers.llm.router import LLMRouter, build_router
 from demand_radar.providers.search.base import SearchError, SearchProvider
 from demand_radar.providers.search.mock import MockSearchProvider
+from demand_radar.schemas.evidence import EvidenceRow
 from demand_radar.schemas.queries import QuerySet
 
 
@@ -230,3 +231,24 @@ def test_closing_summary_points_at_the_word_file_when_it_exists(tmp_path, capsys
     cfg = _demo_config()
     Pipeline(cfg, build_router(cfg.llm), MockSearchProvider(), output_dir=tmp_path).run()
     assert "Word version for sharing" in capsys.readouterr().out
+
+
+def test_analyze_summary_omits_artifacts_it_does_not_write(tmp_path, capsys):
+    """`analyze` replays stages 5-8 over evidence passed in with --input, so
+    it never writes evidence.csv. Naming it would send someone looking for a
+    file that was never there."""
+    cfg = _demo_config()
+    source = tmp_path / "src"
+    Pipeline(cfg, build_router(cfg.llm), MockSearchProvider(), output_dir=source).run()
+    rows = [EvidenceRow(**r) for r in json.loads((source / "evidence.json").read_text())]
+
+    out = tmp_path / "replay"
+    capsys.readouterr()
+    Pipeline(cfg, build_router(cfg.llm), MockSearchProvider(), output_dir=out).analyze_only(rows)
+    printed = capsys.readouterr().out
+
+    assert not (out / "evidence.csv").exists()
+    # Match the pointer line itself — the summary body legitimately contains
+    # the word "Evidence:" in "Observed Evidence:".
+    assert not any(ln.startswith("Evidence:") for ln in printed.splitlines())
+    assert (out / "gtm_plan.md").exists()

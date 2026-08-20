@@ -379,4 +379,8 @@ class Pipeline:
         plan_docx = self.out / "gtm_plan.docx"
         if plan_docx.exists():
             self._say(f"  (Word version for sharing: {plan_docx})")
-        self._say(f"Evidence: {self.out / 'evidence.csv'}")
+        # `analyze` replays stages 5-8 over evidence supplied via --input and
+        # never writes evidence.csv, so the same existence check applies.
+        evidence_csv = self.out / "evidence.csv"
+        if evidence_csv.exists():
+            self._say(f"Evidence: {evidence_csv}")
