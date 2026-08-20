@@ -91,7 +91,7 @@ def test_config_rejects_nested_password(tmp_path):
 
 
 def test_example_config_uses_dataforseo():
-    cfg = load_config("config/elevenlabs.example.yaml")
+    cfg = load_config("config/example.yaml")
     assert cfg.search.provider == "dataforseo"
     assert cfg.search.location_code == 2840
 

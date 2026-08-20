@@ -7,7 +7,7 @@ buying signals, classifies buying-cycle shifts, monitors competitor GTM
 activity, and converts the evidence into prioritized GTM recommendations.
 
 ```bash
-demand-radar run --config config/elevenlabs.example.yaml
+demand-radar run --config config/example.yaml
 ```
 
 ![Enterprise Demand Radar pipeline — 8-stage waterfall with fan-out search branches](docs/images/workflow.svg)
@@ -83,13 +83,33 @@ pipeline's reference validator.
 The trend-analysis stage assigns each detected buying signal one of these
 stages, with supporting evidence IDs, into `output/analysis.json`.
 
-## Example ElevenLabs Configuration
+## Configuring Your Own Brand
 
-[`config/elevenlabs.example.yaml`](config/elevenlabs.example.yaml) tracks
-enterprise voice AI for ElevenLabs against six competitors across five ICP
-roles. **ElevenLabs is an example/portfolio use case — this project does not
-imply any employment or affiliation with ElevenLabs.** Swap the brand,
-keywords, competitors, and ICP roles to point the radar at any B2B company.
+[`config/example.yaml`](config/example.yaml) is a template, not a market:
+placeholder brand, keywords, competitors, and ICP roles, with comments
+explaining what each field drives. Copy it, fill it in, and you are running
+your own market — nothing in the repo is tied to a particular company.
+
+```bash
+cp config/example.yaml config/mybrand.local.yaml
+# edit brand_name, base_keywords, competitors, icp_roles
+demand-radar demo --config config/mybrand.local.yaml   # dry run, no API spend
+demand-radar run  --config config/mybrand.local.yaml   # live
+```
+
+`config/*.local.yaml` is gitignored, so a config named that way can hold your
+real brand and competitor list without risk of committing it — useful if you
+forked this repo and push to your own remote.
+
+The one thing worth tailoring beyond the obvious fields is the **theme
+taxonomy**. Themes are how the radar turns raw results into counts, and those
+counts are the only figures the LLM is allowed to cite — so they are the lens
+the whole run sees your market through. [`config/themes.yaml`](config/themes.yaml)
+ships generic B2B buying signals (pricing/ROI, compliance, performance
+validation, vendor evaluation, and so on) that work in any category. Copy it,
+swap in your market's vocabulary, and point `themes_file:` at your version.
+Stage 5 warns when fewer than 40% of evidence rows match any theme, which is
+the signal your taxonomy does not fit what is being searched.
 
 ## Quickstart
 
@@ -106,7 +126,7 @@ cp .env.example .env   # add your keys here; .env is gitignored
 export ANTHROPIC_API_KEY=sk-ant-...
 export DATAFORSEO_LOGIN=... DATAFORSEO_PASSWORD=...   # primary search provider
 # (or SERPER_API_KEY=... with search.provider: serper)
-demand-radar run --config config/elevenlabs.example.yaml
+demand-radar run --config config/example.yaml
 ```
 
 `python -m demand_radar run --config ...` works too.
@@ -121,6 +141,23 @@ Runs the full pipeline with `MockSearchProvider` (seeded synthetic SERPs on
 fake `*.example.com` domains) and `MockLLMProvider` (canned, clearly labeled
 synthetic analysis). No API keys, no network. Reviewers can see the entire
 system work in seconds; every synthetic artifact is labeled as such.
+
+Demo mode runs the enterprise voice AI use case the original AirOps prototype
+was built around, so its output names ElevenLabs. That is the only place a
+real brand appears in a run, it is banner-labeled synthetic, and none of it is
+a market finding — a recognizable market simply makes the worked example
+easier to follow than an invented one. Nothing you copy to run your own brand
+carries it.
+
+To dry-run your own config through the same mocks — useful for checking that
+your keywords and theme taxonomy hold up before spending anything:
+
+```bash
+demand-radar demo --config config/mybrand.local.yaml
+```
+
+Providers are forced to mock regardless of what the config names, so this is
+safe to run against a live config.
 
 ## Anthropic Configuration
 
@@ -189,10 +226,24 @@ to embed a key in one.
 Every run writes to `output/`:
 
 `queries.json` · `evidence.json` · `evidence.csv` · `signals.json` ·
-`analysis.json` · `gtm_plan.md` · `executive_summary.md` ·
+`analysis.json` · `gtm_plan.md` · `gtm_plan.docx` ·
+`executive_summary.md` · `executive_summary.docx` ·
 `run_metadata.json` (run ID, providers, models used, row counts, timing).
 
 The executive summary is also printed to stdout at the end of the run.
+
+### Word versions
+
+The two deliverables — the GTM plan and the executive summary — are also
+written as `.docx`. They are the artifacts that actually get forwarded, and
+Markdown renders as raw syntax in Outlook, Word, and most document viewers,
+so a recipient would otherwise see `## Top 3 GTM Plays` instead of a
+heading. The Word files carry the same content with real headings, lists,
+and bold, ready to open, comment on, and pass along.
+
+The Markdown remains the source of truth: the `.docx` is rendered from it
+after it is written, and if rendering fails the run prints a note and
+finishes normally rather than losing a report you have already paid for.
 
 **Each run overwrites `output/`** with a fresh snapshot — nothing from a
 previous run is read or retained. This is a point-in-time market radar, not
@@ -252,5 +303,10 @@ LLM architecture, prompt design, product marketing, and evidence-based
 campaign prioritization.
 
 Built by [Andrew F. Llewellyn](https://andrewfllewellyn.com/) — PMP-certified
-project and marketing director. ElevenLabs is referenced solely as an example
-configuration.
+project and marketing director.
+
+**ElevenLabs is referenced solely as an example use case** — in demo mode and
+in this project's prototype history — **and this project does not imply any
+employment or affiliation with ElevenLabs.** No shipped configuration,
+taxonomy, or documented workflow is tied to it: clone the repo and it starts
+brand-neutral.

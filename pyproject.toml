@@ -16,6 +16,10 @@ dependencies = [
     "typer>=0.12",
     "PyYAML>=6.0",
     "requests>=2.31",
+    "python-dotenv>=1.0",
+    # Word twins of the two Markdown deliverables, for forwarding to people
+    # whose tools render .md as raw syntax.
+    "python-docx>=1.1",
 ]
 
 [project.optional-dependencies]
@@ -26,6 +30,11 @@ demand-radar = "demand_radar.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+# demo_themes.yaml is loaded at runtime by `demand-radar demo`, so it has to
+# ship in the wheel — not just work in an editable install.
+[tool.setuptools.package-data]
+demand_radar = ["*.yaml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

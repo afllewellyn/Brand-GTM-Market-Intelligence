@@ -8,8 +8,9 @@ import sys
 from pathlib import Path
 
 import typer
+from dotenv import find_dotenv, load_dotenv
 
-from .config import ConfigError, RadarConfig, load_config
+from .config import ConfigError, LLMConfig, RadarConfig, load_config
 from .pipeline import Pipeline
 from .providers.llm.base import LLMError
 from .providers.llm.router import build_router
@@ -98,6 +99,13 @@ def analyze(
 
 @app.command()
 def demo(
+    config: Path = typer.Option(
+        None,
+        "--config",
+        "-c",
+        help="Optional config to shape the demo. Providers are forced to mock, "
+        "so no credentials are used even if the file names live ones.",
+    ),
     output: Path = typer.Option("output", "--output", "-o", help="Output directory."),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Debug logging."),
 ) -> None:
@@ -109,7 +117,28 @@ def demo(
         f"MockLLMProvider.\nNothing below is a real market finding.\n{bar}",
         fg=typer.colors.YELLOW,
     )
-    cfg = _demo_config()
+    if config is not None:
+        try:
+            loaded = load_config(config)
+            cfg = loaded.model_copy(
+                update={
+                    "search": loaded.search.model_copy(
+                        update={"provider": "mock"}
+                    ),
+                    "llm": LLMConfig(provider="mock", routing_mode="static"),
+                }
+            )
+        except ConfigError as exc:
+            _fail(str(exc))
+            return
+        typer.secho(
+            f"Config '{config}' supplies brand, keywords, competitors and themes.\n"
+            "Search results and all LLM text remain synthetic — the findings "
+            f"below are NOT about {cfg.brand_name}.",
+            fg=typer.colors.YELLOW,
+        )
+    else:
+        cfg = _demo_config()
     router = build_router(cfg.llm)
     search = get_search_provider(cfg)
     Pipeline(cfg, router, search, output_dir=output).run()
@@ -137,10 +166,23 @@ def _search_provider_for_metadata(cfg: RadarConfig) -> SearchProvider:
         return _UnusedSearchProvider(cfg.search.provider)
 
 
+#: Taxonomy for the demo's voice-AI market. Lives in the package, not in
+#: config/, because config/ holds files users copy for their own brand and
+#: nothing there should be tied to one market.
+DEMO_THEMES_FILE = Path(__file__).parent / "demo_themes.yaml"
+
+
 def _demo_config() -> RadarConfig:
-    """The ElevenLabs example configuration with all providers mocked."""
+    """The ElevenLabs example configuration with all providers mocked.
+
+    Demo mode is the one place a real brand appears in a run: its output is
+    banner-labeled synthetic, so a recognizable market makes the worked
+    example easier to follow than an invented one would. Everything a user
+    copies to run their own brand is market-agnostic.
+    """
     return RadarConfig(
         brand_name="ElevenLabs",
+        themes_file=str(DEMO_THEMES_FILE),
         primary_markets=["North America"],
         base_keywords=[
             "enterprise voice AI",
@@ -167,6 +209,11 @@ def _demo_config() -> RadarConfig:
 
 
 def main() -> None:
+    # Load .env before any provider reads os.environ. The README tells users
+    # to put credentials in .env, so the CLI has to honor that. Real
+    # environment variables win (override=False) — an explicit `export` or a
+    # CI secret must beat a stale file on disk.
+    load_dotenv(find_dotenv(usecwd=True), override=False)
     app()
 
 

@@ -39,6 +39,46 @@ def _extract_json(text: str) -> Any:
     return json.loads(cleaned[start : end + 1])
 
 
+def _friendly_api_error(exc: Exception) -> str:
+    """Turn a raw Anthropic API error into an actionable next step.
+
+    These three account-state failures are what a first run actually hits,
+    and the raw API text does not tell a user what to do about them.
+    """
+    status = getattr(exc, "status_code", None)
+    raw = str(exc)
+    low = raw.lower()
+
+    if "credit balance is too low" in low or "purchase credits" in low:
+        return (
+            "Anthropic API: your credit balance is too low.\n"
+            "  Add credits at https://console.anthropic.com -> Plans & Billing.\n"
+            "  Note: a Claude.ai or Claude Code subscription does NOT include "
+            "API credits — the API is billed separately.\n"
+            "  No search spend occurred; the run stopped before any search "
+            "queries were issued.\n"
+            "  To keep working without credentials, run `demand-radar demo`."
+        )
+    if status == 401 or "authentication_error" in low:
+        return (
+            "Anthropic API: the key was rejected (401).\n"
+            "  Check ANTHROPIC_API_KEY in your .env — it should start with "
+            "'sk-ant-' and carry no quotes or trailing spaces.\n"
+            "  Keys are read from the environment first, so a stale `export` "
+            "in your shell will override the file.\n"
+            "  To keep working without credentials, run `demand-radar demo`."
+        )
+    if status == 429 or "rate_limit" in low:
+        return (
+            "Anthropic API: rate limited (429).\n"
+            "  Wait a moment and re-run, or lower results_per_query in your "
+            "config to reduce the work per stage.\n"
+            "  Evidence already written to the output directory is reusable "
+            "via `demand-radar analyze`."
+        )
+    return f"Anthropic API error: {raw}"
+
+
 class AnthropicProvider(LLMProvider):
     """LLM provider backed by the Anthropic Messages API."""
 
@@ -114,7 +154,7 @@ class AnthropicProvider(LLMProvider):
                 messages=[{"role": "user", "content": prompt}],
             )
         except self._anthropic.APIError as exc:
-            raise LLMError(f"Anthropic API error: {exc}") from exc
+            raise LLMError(_friendly_api_error(exc)) from exc
         return "".join(
             block.text for block in resp.content if getattr(block, "type", "") == "text"
         )

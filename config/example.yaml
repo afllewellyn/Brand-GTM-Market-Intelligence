@@ -1,0 +1,85 @@
+# Enterprise Demand Radar — example configuration.
+#
+# This is a template, not a working market: fill in your own brand, keywords,
+# competitors, and ICP roles before a live run. Every value below is a
+# placeholder chosen to show the shape of a real config.
+#
+# Copy it rather than editing it in place. Anything matching *.local.yaml in
+# config/ is gitignored, so a copy named that way can hold your real brand and
+# competitors without ever landing in a commit:
+#
+#   cp config/example.yaml config/mybrand.local.yaml
+#   demand-radar demo --config config/mybrand.local.yaml   # dry run, no spend
+#   demand-radar run  --config config/mybrand.local.yaml   # live
+
+brand_name: Example Corp
+
+primary_markets:
+  - North America
+
+# Seed topics. The radar expands these into market, intent, and competitor
+# queries — 6-10 works well. Use the language your buyers search, not your
+# internal product names.
+base_keywords:
+  - enterprise workflow automation
+  - workflow automation platform
+  - process automation software
+  - automation ROI
+  - automation compliance
+  - enterprise integration platform
+  - low-code automation
+
+# Who you actually lose deals to. Competitor queries are built per name.
+competitors:
+  - Competitor One
+  - Competitor Two
+  - Competitor Three
+
+# The roles you sell into. These shape intent queries and the GTM plan's
+# audience targeting.
+icp_roles:
+  - VP of Operations
+  - Director of IT
+  - Head of Business Systems
+  - Procurement Lead
+  - CTO
+
+timeframe: weekly
+
+search:
+  # Providers: dataforseo (production default), serper (alternative),
+  # mock (no credentials, for demos/tests).
+  # Credentials come from environment variables ONLY (see .env.example):
+  #   dataforseo -> DATAFORSEO_LOGIN + DATAFORSEO_PASSWORD
+  #   serper     -> SERPER_API_KEY
+  # Never put keys in this file — the loader will refuse to run.
+  provider: dataforseo
+  results_per_query: 10
+  # DataForSEO locale (ignored by other providers)
+  language_code: en
+  location_code: 2840  # United States
+
+llm:
+  provider: anthropic
+  # static = use the per-task models below
+  # adaptive = reserved for a future external model-routing service
+  routing_mode: static
+  tasks:
+    query_expansion:
+      model: claude-haiku-4-5
+      reasoning_level: low
+    trend_analysis:
+      model: claude-sonnet-5
+      reasoning_level: high
+    gtm_recommendations:
+      model: claude-sonnet-5
+      reasoning_level: medium
+    executive_summary:
+      model: claude-haiku-4-5
+      reasoning_level: low
+
+# Theme taxonomy. Omit this and you get the market-agnostic default in
+# src/demand_radar/processing/signals.py, which is a fine starting point but
+# will not know your market's vocabulary. Copy config/themes.yaml, tailor the
+# keywords, and point here — stage 5 warns when coverage is low.
+# themes_file: config/mybrand-themes.local.yaml

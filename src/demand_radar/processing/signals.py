@@ -19,34 +19,37 @@ import yaml
 from ..schemas.evidence import EvidenceRow
 from ..schemas.signals import SignalSummary
 
+# Market-agnostic fallback taxonomy: generic B2B buying signals that appear in
+# any enterprise category. It is deliberately not tuned to one market — a
+# taxonomy that fits a specific market always beats this one, so a real run
+# should set themes_file. Stage 5 warns when coverage against it is low.
 DEFAULT_THEMES: dict[str, list[str]] = {
     "pricing_roi": [
         "pricing", "price", "cost", "roi", "return on investment",
-        "tco", "payback", "economics",
+        "tco", "payback", "economics", "budget",
     ],
     "compliance_security": [
         "compliance", "security", "privacy", "gdpr", "ccpa", "soc 2",
-        "hipaa", "governance", "data residency", "risk",
+        "hipaa", "governance", "data residency", "risk", "audit",
     ],
     "performance_validation": [
         "performance", "latency", "reliability", "benchmark", "accuracy",
-        "uptime", "case study", "scale", "production",
-    ],
-    "voice_agents": [
-        "voice agent", "voice agents", "ai agent", "ai agents", "phone agent",
-    ],
-    "contact_center": [
-        "contact center", "call center", "customer experience",
+        "uptime", "case study", "scale", "production", "sla",
     ],
     "implementation": [
         "implementation", "integration", "api", "deployment",
-        "migration", "architecture",
+        "migration", "architecture", "onboarding", "rollout",
     ],
     "comparison": [
         " vs ", "versus", "alternative", "alternatives", "compare", "comparison",
     ],
-    "localization": [
-        "localization", "multilingual", "languages", "translation", "dubbing",
+    "vendor_evaluation": [
+        "rfp", "rfi", "shortlist", "buyer's guide", "buyers guide",
+        "evaluation", "review", "g2", "gartner", "forrester", "procurement",
+    ],
+    "adoption_enablement": [
+        "training", "support", "documentation", "best practices",
+        "adoption", "change management", "professional services",
     ],
 }
 
