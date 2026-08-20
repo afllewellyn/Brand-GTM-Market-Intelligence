@@ -218,6 +218,15 @@ def test_run_survives_a_word_rendering_failure(tmp_path, capsys, monkeypatch):
     cfg = _demo_config()
     Pipeline(cfg, build_router(cfg.llm), MockSearchProvider(), output_dir=tmp_path).run()
 
+    out = capsys.readouterr().out
     assert (tmp_path / "gtm_plan.md").read_text(encoding="utf-8").strip()
     assert not (tmp_path / "gtm_plan.docx").exists()
-    assert "python-docx is not installed" in capsys.readouterr().out
+    assert "python-docx is not installed" in out
+    # Nothing may point at a Word file that was never written.
+    assert "Word version for sharing" not in out
+
+
+def test_closing_summary_points_at_the_word_file_when_it_exists(tmp_path, capsys):
+    cfg = _demo_config()
+    Pipeline(cfg, build_router(cfg.llm), MockSearchProvider(), output_dir=tmp_path).run()
+    assert "Word version for sharing" in capsys.readouterr().out

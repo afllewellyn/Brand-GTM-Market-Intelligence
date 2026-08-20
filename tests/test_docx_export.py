@@ -101,3 +101,50 @@ def test_missing_dependency_raises_an_actionable_error():
     assert "python-docx" in str(exc)
     with pytest.raises(DocxUnavailable):
         raise exc
+
+
+WRAPPED = """# Report
+
+> A quote that the model wrapped
+> across two source lines.
+
+## Section
+A sentence wrapped at roughly seventy-two columns,
+continuing onto a second line,
+and a third.
+
+- A bullet whose text also wraps
+  onto a continuation line
+
+Another paragraph.
+"""
+
+
+def test_soft_wrapped_prose_becomes_one_paragraph(tmp_path):
+    """Markdown treats a single newline as a soft break. Emitting one Word
+    paragraph per source line shatters wrapped prose into fragments."""
+    styles = _styles(markdown_to_docx(WRAPPED, tmp_path / "w.docx", "F"))
+    bodies = [text for style, text in styles if style == "Normal"]
+    assert bodies[0] == (
+        "A sentence wrapped at roughly seventy-two columns, "
+        "continuing onto a second line, and a third."
+    )
+    assert "Another paragraph." in bodies
+
+
+def test_wrapped_blockquote_becomes_one_quote(tmp_path):
+    styles = _styles(markdown_to_docx(WRAPPED, tmp_path / "w.docx", "F"))
+    quotes = [text for style, text in styles if style == "Intense Quote"]
+    assert quotes == ["A quote that the model wrapped across two source lines."]
+
+
+def test_wrapped_list_item_stays_one_item(tmp_path):
+    styles = _styles(markdown_to_docx(WRAPPED, tmp_path / "w.docx", "F"))
+    bullets = [text for style, text in styles if style == "List Bullet"]
+    assert bullets == ["A bullet whose text also wraps onto a continuation line"]
+
+
+def test_blank_line_still_separates_paragraphs(tmp_path):
+    """Buffering must not run distinct paragraphs together."""
+    styles = _styles(markdown_to_docx("# T\n\nOne.\n\nTwo.\n", tmp_path / "b.docx", "F"))
+    assert [text for style, text in styles if style == "Normal"] == ["One.", "Two."]

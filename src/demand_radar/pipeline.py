@@ -373,5 +373,10 @@ class Pipeline:
         if self._echo:
             print(summary)
         self._say(f"\nFull report: {self.out / 'gtm_plan.md'}")
-        self._say(f"  (Word version for sharing: {self.out / 'gtm_plan.docx'})")
+        # _write_docx degrades to a warning rather than failing the run, so
+        # this file is not guaranteed to exist. Pointing at a missing path
+        # would send someone looking for a report that was never written.
+        plan_docx = self.out / "gtm_plan.docx"
+        if plan_docx.exists():
+            self._say(f"  (Word version for sharing: {plan_docx})")
         self._say(f"Evidence: {self.out / 'evidence.csv'}")

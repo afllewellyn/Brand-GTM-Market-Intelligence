@@ -98,33 +98,67 @@ def markdown_to_docx(text: str, path: Path, fallback_title: str) -> Path:
     doc = Document()
     _add_runs(doc.add_heading(level=0), title)
 
+    # Markdown treats a single newline inside a block as a soft break, so
+    # consecutive lines are buffered and joined rather than emitted one Word
+    # paragraph each. Without this, prose wrapped at ~72 columns — which is
+    # how the LLM prompts ask for it — arrives as separately-spaced sentence
+    # fragments instead of paragraphs.
+    pending: list[str] = []
+    pending_style: str | None = None
+
+    def flush() -> None:
+        nonlocal pending, pending_style
+        if pending:
+            _add_runs(doc.add_paragraph(style=pending_style), " ".join(pending))
+        pending = []
+        pending_style = None
+
     for line in body:
         stripped = line.strip()
         if not stripped:
+            flush()
             continue
 
         if match := _HEADING.match(stripped):
+            flush()
             level = len(match.group(1)) - (1 if demoted else 0)
-            _add_runs(doc.add_heading(level=min(max(level, 1), 4)), match.group(2).strip())
+            _add_runs(
+                doc.add_heading(level=min(max(level, 1), 4)), match.group(2).strip()
+            )
             continue
 
         if match := _QUOTE.match(stripped):
-            _add_runs(doc.add_paragraph(style="Intense Quote"), match.group(1))
+            if pending_style != "Intense Quote":
+                flush()
+                pending_style = "Intense Quote"
+            pending.append(match.group(1).strip())
             continue
 
         if match := _BULLET.match(line):
-            _add_runs(doc.add_paragraph(style="List Bullet"), match.group(1))
+            flush()
+            pending_style = "List Bullet"
+            pending.append(match.group(1).strip())
             continue
 
         if match := _NUMBERED.match(line):
-            _add_runs(doc.add_paragraph(style="List Number"), match.group(1))
+            flush()
+            pending_style = "List Number"
+            pending.append(match.group(1).strip())
             continue
 
         if _is_bare_heading(stripped):
+            flush()
             _add_runs(doc.add_heading(level=1), stripped)
             continue
 
-        _add_runs(doc.add_paragraph(), stripped)
+        # Plain text. A quote block ends here, since an unprefixed line is no
+        # longer quoted. After a list item it is that item's continuation,
+        # which is what Markdown's lazy continuation does.
+        if pending_style == "Intense Quote":
+            flush()
+        pending.append(stripped)
+
+    flush()
 
     doc.save(str(path))
     return path
