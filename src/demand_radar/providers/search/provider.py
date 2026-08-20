@@ -35,7 +35,7 @@ class SerperSearchProvider(SearchProvider):
         if not self._key:
             raise SearchError(
                 "SERPER_API_KEY is not set. Export it, or use search.provider: "
-                "mock (see config/elevenlabs.example.yaml)."
+                "mock (see config/example.yaml)."
             )
         self._retries = retries
 

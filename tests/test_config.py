@@ -1,5 +1,7 @@
 """Configuration loading and validation."""
 
+from pathlib import Path
+
 import pytest
 
 from demand_radar.config import ConfigError, load_config
@@ -39,10 +41,14 @@ def test_malformed_yaml_raises(tmp_path):
 
 
 def test_example_config_is_valid():
-    cfg = load_config("config/elevenlabs.example.yaml")
-    assert cfg.brand_name == "ElevenLabs"
+    """The shipped example is a template, so it must load AND stay generic —
+    it is the first file a new user copies for their own brand."""
+    cfg = load_config("config/example.yaml")
+    assert cfg.brand_name == "Example Corp"
     assert cfg.llm.routing_mode == "static"
-    assert len(cfg.competitors) == 6
+    assert len(cfg.competitors) == 3
+    text = Path("config/example.yaml").read_text(encoding="utf-8").lower()
+    assert "elevenlabs" not in text
 
 
 def test_analyze_does_not_require_search_credentials(monkeypatch):
@@ -58,7 +64,7 @@ def test_analyze_does_not_require_search_credentials(monkeypatch):
     monkeypatch.delenv("DATAFORSEO_LOGIN", raising=False)
     monkeypatch.delenv("DATAFORSEO_PASSWORD", raising=False)
 
-    cfg = load_config("config/elevenlabs.example.yaml")
+    cfg = load_config("config/example.yaml")
     provider = _search_provider_for_metadata(cfg)
 
     assert provider.name == "dataforseo", "run metadata must still name the provider"
