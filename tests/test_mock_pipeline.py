@@ -136,3 +136,32 @@ def test_run_clears_stale_downstream_artifacts_before_writing(tmp_path):
 
     assert "STALE" not in (tmp_path / "gtm_plan.md").read_text()
     assert "STALE" not in (tmp_path / "run_metadata.json").read_text()
+
+
+def _run_with_themes(tmp_path, themes_yaml, capsys):
+    """Run the mock pipeline with a given taxonomy, return stdout."""
+    themes = tmp_path / "themes.yaml"
+    themes.write_text(themes_yaml, encoding="utf-8")
+    cfg = _demo_config().model_copy(update={"themes_file": str(themes)})
+    Pipeline(
+        cfg, build_router(cfg.llm), MockSearchProvider(), output_dir=tmp_path / "out"
+    ).run()
+    return capsys.readouterr().out
+
+
+def test_warns_when_taxonomy_does_not_fit_the_evidence(tmp_path, capsys):
+    """A mismatched taxonomy still produces counts — the warning is the only
+    thing standing between a user and meaningless numbers under a correct
+    brand header."""
+    out = _run_with_themes(
+        tmp_path, "themes:\n  agriculture:\n    - tractor\n    - soybean\n", capsys
+    )
+    assert "WARNING" in out
+    assert "0% of evidence matched any theme" in out
+
+
+def test_no_warning_when_taxonomy_fits(tmp_path, capsys):
+    out = _run_with_themes(
+        tmp_path, "themes:\n  broad:\n    - a\n    - e\n    - i\n", capsys
+    )
+    assert "WARNING" not in out

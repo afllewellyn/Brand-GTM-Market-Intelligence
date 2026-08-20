@@ -108,7 +108,10 @@ class Pipeline:
     # -- small helpers --------------------------------------------------
     def _say(self, msg: str) -> None:
         if self._echo:
-            print(msg)
+            # flush=True keeps progress ordered against errors. stdout is
+            # block-buffered when piped while stderr is not, so without this a
+            # failure message surfaces *above* the stage that caused it.
+            print(msg, flush=True)
         log.info(msg)
 
     def _clear_artifacts(self, names: tuple[str, ...]) -> None:
@@ -204,7 +207,31 @@ class Pipeline:
         top = list(signals.theme_counts.items())[:4]
         for name, count in top:
             self._say(f"  {name}: {count}")
+        self._warn_on_low_theme_coverage(rows, signals)
         return signals
+
+    def _warn_on_low_theme_coverage(
+        self, rows: list[EvidenceRow], signals: SignalSummary, floor: float = 0.4
+    ) -> None:
+        """Warn when the taxonomy barely matches the evidence.
+
+        A theme file tuned for a different market still produces counts —
+        just meaningless ones — under a correct-looking brand header. Low
+        coverage is the signal that the taxonomy does not fit this run.
+        """
+        if not rows:
+            return
+        matched = {eid for ids in signals.theme_evidence_ids.values() for eid in ids}
+        coverage = len(matched) / len(rows)
+        if coverage >= floor:
+            return
+        source = self.config.themes_file or "the built-in default taxonomy"
+        self._say(
+            f"  WARNING: only {coverage:.0%} of evidence matched any theme "
+            f"(from {source}).\n"
+            f"  Theme counts above are unreliable for {self.config.brand_name}. "
+            f"Set themes_file in your config to a taxonomy for this market."
+        )
 
     # -- Stage 6 ------------------------------------------------------
     def stage6_analyze(
