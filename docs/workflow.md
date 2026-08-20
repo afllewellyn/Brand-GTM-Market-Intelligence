@@ -8,7 +8,7 @@ export ANTHROPIC_API_KEY=sk-ant-...
 export DATAFORSEO_LOGIN=... DATAFORSEO_PASSWORD=...
 # (alternative: export SERPER_API_KEY=... with search.provider: serper)
 
-demand-radar run --config config/elevenlabs.example.yaml
+demand-radar run --config config/example.yaml
 ```
 
 Credentials are environment-only. The config loader rejects any config
@@ -18,9 +18,9 @@ What happens, stage by stage:
 
 ```
 [1/8] Configuration loaded
-  Brand: ElevenLabs
+  Brand: Example Corp
   Market: North America
-  Competitors: 6
+  Competitors: 3
   Seed topics: 7
 [2/8] Expanding queries with LLM...
 [3/8] Collecting search evidence...
@@ -41,7 +41,7 @@ Evidence collection is the slow, rate-limited part. Once
 `output/evidence.json` exists you can iterate on analysis alone:
 
 ```bash
-demand-radar analyze --input output/evidence.json --config config/elevenlabs.example.yaml
+demand-radar analyze --input output/evidence.json --config config/example.yaml
 ```
 
 Without `--config`, analysis runs against the mock LLM (clearly labeled

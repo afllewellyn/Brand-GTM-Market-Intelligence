@@ -7,7 +7,7 @@ buying signals, classifies buying-cycle shifts, monitors competitor GTM
 activity, and converts the evidence into prioritized GTM recommendations.
 
 ```bash
-demand-radar run --config config/elevenlabs.example.yaml
+demand-radar run --config config/example.yaml
 ```
 
 ![Enterprise Demand Radar pipeline — 8-stage waterfall with fan-out search branches](docs/images/workflow.svg)
@@ -83,13 +83,29 @@ pipeline's reference validator.
 The trend-analysis stage assigns each detected buying signal one of these
 stages, with supporting evidence IDs, into `output/analysis.json`.
 
-## Example ElevenLabs Configuration
+## Configuring Your Own Brand
 
-[`config/elevenlabs.example.yaml`](config/elevenlabs.example.yaml) tracks
-enterprise voice AI for ElevenLabs against six competitors across five ICP
-roles. **ElevenLabs is an example/portfolio use case — this project does not
-imply any employment or affiliation with ElevenLabs.** Swap the brand,
-keywords, competitors, and ICP roles to point the radar at any B2B company.
+[`config/example.yaml`](config/example.yaml) is a template, not a market:
+placeholder brand, keywords, competitors, and ICP roles, with comments
+explaining what each field drives. Copy it, fill it in, and you are running
+your own market — nothing in the repo is tied to a particular company.
+
+```bash
+cp config/example.yaml config/mybrand.yaml
+# edit brand_name, base_keywords, competitors, icp_roles
+demand-radar demo --config config/mybrand.yaml   # dry run, no API spend
+demand-radar run  --config config/mybrand.yaml   # live
+```
+
+The one thing worth tailoring beyond the obvious fields is the **theme
+taxonomy**. Themes are how the radar turns raw results into counts, and those
+counts are the only figures the LLM is allowed to cite — so they are the lens
+the whole run sees your market through. [`config/themes.yaml`](config/themes.yaml)
+ships generic B2B buying signals (pricing/ROI, compliance, performance
+validation, vendor evaluation, and so on) that work in any category. Copy it,
+swap in your market's vocabulary, and point `themes_file:` at your version.
+Stage 5 warns when fewer than 40% of evidence rows match any theme, which is
+the signal your taxonomy does not fit what is being searched.
 
 ## Quickstart
 
@@ -106,7 +122,7 @@ cp .env.example .env   # add your keys here; .env is gitignored
 export ANTHROPIC_API_KEY=sk-ant-...
 export DATAFORSEO_LOGIN=... DATAFORSEO_PASSWORD=...   # primary search provider
 # (or SERPER_API_KEY=... with search.provider: serper)
-demand-radar run --config config/elevenlabs.example.yaml
+demand-radar run --config config/example.yaml
 ```
 
 `python -m demand_radar run --config ...` works too.
@@ -121,6 +137,23 @@ Runs the full pipeline with `MockSearchProvider` (seeded synthetic SERPs on
 fake `*.example.com` domains) and `MockLLMProvider` (canned, clearly labeled
 synthetic analysis). No API keys, no network. Reviewers can see the entire
 system work in seconds; every synthetic artifact is labeled as such.
+
+Demo mode runs the enterprise voice AI use case the original AirOps prototype
+was built around, so its output names ElevenLabs. That is the only place a
+real brand appears in a run, it is banner-labeled synthetic, and none of it is
+a market finding — a recognizable market simply makes the worked example
+easier to follow than an invented one. Nothing you copy to run your own brand
+carries it.
+
+To dry-run your own config through the same mocks — useful for checking that
+your keywords and theme taxonomy hold up before spending anything:
+
+```bash
+demand-radar demo --config config/mybrand.yaml
+```
+
+Providers are forced to mock regardless of what the config names, so this is
+safe to run against a live config.
 
 ## Anthropic Configuration
 
@@ -252,5 +285,10 @@ LLM architecture, prompt design, product marketing, and evidence-based
 campaign prioritization.
 
 Built by [Andrew F. Llewellyn](https://andrewfllewellyn.com/) — PMP-certified
-project and marketing director. ElevenLabs is referenced solely as an example
-configuration.
+project and marketing director.
+
+**ElevenLabs is referenced solely as an example use case** — in demo mode and
+in this project's prototype history — **and this project does not imply any
+employment or affiliation with ElevenLabs.** No shipped configuration,
+taxonomy, or documented workflow is tied to it: clone the repo and it starts
+brand-neutral.
