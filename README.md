@@ -178,6 +178,44 @@ without paying for the search again. It needs no search credentials.
 
 Stage-by-stage walkthrough of a full run: [`docs/workflow.md`](docs/workflow.md).
 
+## Spending Guard
+
+`demo` is free. `run` and `analyze` call paid APIs. Because credentials load
+from `.env` automatically, the only thing separating a free run from a billed
+one used to be which subcommand you typed — so both billing commands now stop
+first:
+
+```
+================================================================
+THIS WILL SPEND MONEY — demand-radar run
+================================================================
+  LLM provider:    anthropic
+  Search provider: dataforseo
+  Billed to whoever owns these credentials:
+    ANTHROPIC_API_KEY        from /path/to/.env
+================================================================
+Proceed? [y/N]:
+```
+
+- **The default is No** — pressing enter declines.
+- **Non-interactive sessions refuse outright.** Cron and CI have nobody to
+  ask, so consent is never inferred from silence; pass `--yes` to authorize.
+- **Mock providers skip it entirely**, because they cannot spend.
+
+```bash
+demand-radar run --config config/mybrand.local.yaml --yes
+```
+
+Naming each credential and where it came from — the shell environment, or the
+exact `.env` path — is the point: a `.env` left in a working copy is the one
+way you end up billing an account you did not mean to.
+
+Nothing in this repository ships credentials. `.env` is gitignored and has
+never been committed, `.env.example` holds only empty keys, and the config
+loader refuses any config file containing credential-like fields. A fresh
+clone cannot spend anything until you add your own keys — and then not
+without answering the prompt above.
+
 ## Anthropic Configuration
 
 The default LLM provider is the Anthropic API via the official Python SDK.
@@ -288,7 +326,8 @@ against a prior one.
 pytest
 ```
 
-Coverage includes: URL normalization, deduplication, evidence-ID generation,
+Coverage includes: the spending guard, URL normalization, deduplication,
+evidence-ID generation,
 theme matching, signal counting, config validation, mock provider behavior,
 full mock pipeline artifacts, evidence-reference integrity,
 invalid-LLM-response handling, abort-on-total-search-failure, stale-artifact
