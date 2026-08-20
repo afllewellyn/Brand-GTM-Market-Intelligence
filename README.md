@@ -363,8 +363,7 @@ thinking, market intelligence, buying-cycle analysis, Python orchestration,
 LLM architecture, prompt design, product marketing, and evidence-based
 campaign prioritization.
 
-Built by [Andrew F. Llewellyn](https://andrewfllewellyn.com/) — PMP-certified
-project and marketing director.
+Built by [Andrew F. Llewellyn](https://andrewfllewellyn.com/)
 
 **ElevenLabs is referenced solely as an example use case** — in demo mode and
 in this project's prototype history — **and this project does not imply any
