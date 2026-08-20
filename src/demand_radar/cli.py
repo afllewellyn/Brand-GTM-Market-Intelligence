@@ -10,7 +10,7 @@ from pathlib import Path
 import typer
 from dotenv import find_dotenv, load_dotenv
 
-from .config import ConfigError, RadarConfig, load_config
+from .config import ConfigError, LLMConfig, RadarConfig, load_config
 from .pipeline import Pipeline
 from .providers.llm.base import LLMError
 from .providers.llm.router import build_router
@@ -99,6 +99,13 @@ def analyze(
 
 @app.command()
 def demo(
+    config: Path = typer.Option(
+        None,
+        "--config",
+        "-c",
+        help="Optional config to shape the demo. Providers are forced to mock, "
+        "so no credentials are used even if the file names live ones.",
+    ),
     output: Path = typer.Option("output", "--output", "-o", help="Output directory."),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Debug logging."),
 ) -> None:
@@ -110,7 +117,28 @@ def demo(
         f"MockLLMProvider.\nNothing below is a real market finding.\n{bar}",
         fg=typer.colors.YELLOW,
     )
-    cfg = _demo_config()
+    if config is not None:
+        try:
+            loaded = load_config(config)
+            cfg = loaded.model_copy(
+                update={
+                    "search": loaded.search.model_copy(
+                        update={"provider": "mock"}
+                    ),
+                    "llm": LLMConfig(provider="mock", routing_mode="static"),
+                }
+            )
+        except ConfigError as exc:
+            _fail(str(exc))
+            return
+        typer.secho(
+            f"Config '{config}' supplies brand, keywords, competitors and themes.\n"
+            "Search results and all LLM text remain synthetic — the findings "
+            f"below are NOT about {cfg.brand_name}.",
+            fg=typer.colors.YELLOW,
+        )
+    else:
+        cfg = _demo_config()
     router = build_router(cfg.llm)
     search = get_search_provider(cfg)
     Pipeline(cfg, router, search, output_dir=output).run()
