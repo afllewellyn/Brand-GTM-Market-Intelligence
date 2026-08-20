@@ -24,6 +24,12 @@ htmlcov/
 output/*
 !output/.gitkeep
 
+# Local run configs — your own brand, keywords, and competitors. The repo
+# ships only generic templates (config/example.yaml, config/themes.yaml);
+# copy one to *.local.yaml and it stays out of git. The pattern is
+# deliberately brand-neutral so nothing here names a company.
+config/*.local.yaml
+
 # OS / editor cruft
 .DS_Store
 Thumbs.db

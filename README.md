@@ -91,11 +91,15 @@ explaining what each field drives. Copy it, fill it in, and you are running
 your own market — nothing in the repo is tied to a particular company.
 
 ```bash
-cp config/example.yaml config/mybrand.yaml
+cp config/example.yaml config/mybrand.local.yaml
 # edit brand_name, base_keywords, competitors, icp_roles
-demand-radar demo --config config/mybrand.yaml   # dry run, no API spend
-demand-radar run  --config config/mybrand.yaml   # live
+demand-radar demo --config config/mybrand.local.yaml   # dry run, no API spend
+demand-radar run  --config config/mybrand.local.yaml   # live
 ```
+
+`config/*.local.yaml` is gitignored, so a config named that way can hold your
+real brand and competitor list without risk of committing it — useful if you
+forked this repo and push to your own remote.
 
 The one thing worth tailoring beyond the obvious fields is the **theme
 taxonomy**. Themes are how the radar turns raw results into counts, and those
@@ -149,7 +153,7 @@ To dry-run your own config through the same mocks — useful for checking that
 your keywords and theme taxonomy hold up before spending anything:
 
 ```bash
-demand-radar demo --config config/mybrand.yaml
+demand-radar demo --config config/mybrand.local.yaml
 ```
 
 Providers are forced to mock regardless of what the config names, so this is

@@ -4,12 +4,13 @@
 # competitors, and ICP roles before a live run. Every value below is a
 # placeholder chosen to show the shape of a real config.
 #
-# Copy it rather than editing it in place, so `git status` stays clean and
-# your own config never lands in a commit:
+# Copy it rather than editing it in place. Anything matching *.local.yaml in
+# config/ is gitignored, so a copy named that way can hold your real brand and
+# competitors without ever landing in a commit:
 #
-#   cp config/example.yaml config/mybrand.yaml
-#   demand-radar demo --config config/mybrand.yaml   # dry run, no API spend
-#   demand-radar run  --config config/mybrand.yaml   # live
+#   cp config/example.yaml config/mybrand.local.yaml
+#   demand-radar demo --config config/mybrand.local.yaml   # dry run, no spend
+#   demand-radar run  --config config/mybrand.local.yaml   # live
 
 brand_name: Example Corp
 
@@ -81,4 +82,4 @@ llm:
 # src/demand_radar/processing/signals.py, which is a fine starting point but
 # will not know your market's vocabulary. Copy config/themes.yaml, tailor the
 # keywords, and point here — stage 5 warns when coverage is low.
-# themes_file: config/mybrand-themes.yaml
+# themes_file: config/mybrand-themes.local.yaml
