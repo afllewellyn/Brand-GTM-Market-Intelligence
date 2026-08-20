@@ -226,10 +226,24 @@ to embed a key in one.
 Every run writes to `output/`:
 
 `queries.json` · `evidence.json` · `evidence.csv` · `signals.json` ·
-`analysis.json` · `gtm_plan.md` · `executive_summary.md` ·
+`analysis.json` · `gtm_plan.md` · `gtm_plan.docx` ·
+`executive_summary.md` · `executive_summary.docx` ·
 `run_metadata.json` (run ID, providers, models used, row counts, timing).
 
 The executive summary is also printed to stdout at the end of the run.
+
+### Word versions
+
+The two deliverables — the GTM plan and the executive summary — are also
+written as `.docx`. They are the artifacts that actually get forwarded, and
+Markdown renders as raw syntax in Outlook, Word, and most document viewers,
+so a recipient would otherwise see `## Top 3 GTM Plays` instead of a
+heading. The Word files carry the same content with real headings, lists,
+and bold, ready to open, comment on, and pass along.
+
+The Markdown remains the source of truth: the `.docx` is rendered from it
+after it is written, and if rendering fails the run prints a note and
+finishes normally rather than losing a report you have already paid for.
 
 **Each run overwrites `output/`** with a fresh snapshot — nothing from a
 previous run is read or retained. This is a point-in-time market radar, not

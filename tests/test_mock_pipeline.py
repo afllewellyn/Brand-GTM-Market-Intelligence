@@ -1,8 +1,10 @@
 """End-to-end pipeline behavior with mock providers, plus failure handling."""
 
 import json
+import zipfile
 
 import pytest
+from docx import Document
 
 from demand_radar.cli import _demo_config
 from demand_radar.pipeline import Pipeline
@@ -165,3 +167,57 @@ def test_no_warning_when_taxonomy_fits(tmp_path, capsys):
         tmp_path, "themes:\n  broad:\n    - a\n    - e\n    - i\n", capsys
     )
     assert "WARNING" not in out
+
+
+def test_run_writes_word_versions_of_both_deliverables(tmp_path):
+    """The .docx twins are what actually get forwarded to other people."""
+    cfg = _demo_config()
+    Pipeline(cfg, build_router(cfg.llm), MockSearchProvider(), output_dir=tmp_path).run()
+
+    for stem in ("gtm_plan", "executive_summary"):
+        docx = tmp_path / f"{stem}.docx"
+        assert docx.exists(), f"{stem}.docx missing"
+        assert zipfile.is_zipfile(docx), f"{stem}.docx is not a valid package"
+        paragraphs = Document(str(docx)).paragraphs
+        assert paragraphs[0].style.name == "Title", f"{stem}.docx has no title"
+        # The Word version must carry the same content as its Markdown twin,
+        # not just be a well-formed empty document.
+        body = "\n".join(p.text for p in paragraphs[1:])
+        markdown = (tmp_path / f"{stem}.md").read_text(encoding="utf-8")
+        for line in [ln.strip() for ln in markdown.splitlines() if ln.strip()][-3:]:
+            assert line.lstrip("#>-0123456789. ") in body
+
+    # The summary has no `# ` heading of its own, so its title is the one the
+    # pipeline supplies — the brand's name, which is what a recipient sees.
+    summary_title = Document(str(tmp_path / "executive_summary.docx")).paragraphs[0]
+    assert cfg.brand_name in summary_title.text
+
+
+def test_stale_word_files_are_cleared_like_their_markdown(tmp_path):
+    """The .docx files are run artifacts too. If they survived a failed run
+    they would be the ones forwarded — stale content under a fresh date."""
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    (tmp_path / "gtm_plan.docx").write_text("STALE", encoding="utf-8")
+
+    cfg = _demo_config()
+    Pipeline(cfg, build_router(cfg.llm), MockSearchProvider(), output_dir=tmp_path).run()
+
+    assert zipfile.is_zipfile(tmp_path / "gtm_plan.docx")
+
+
+def test_run_survives_a_word_rendering_failure(tmp_path, capsys, monkeypatch):
+    """The .md is the source of truth and the LLM calls are already paid for,
+    so a Word problem must degrade to a note, not fail the run."""
+    import demand_radar.pipeline as pipeline_mod
+
+    def _boom(*args, **kwargs):
+        raise pipeline_mod.DocxUnavailable("python-docx is not installed")
+
+    monkeypatch.setattr(pipeline_mod, "markdown_to_docx", _boom)
+
+    cfg = _demo_config()
+    Pipeline(cfg, build_router(cfg.llm), MockSearchProvider(), output_dir=tmp_path).run()
+
+    assert (tmp_path / "gtm_plan.md").read_text(encoding="utf-8").strip()
+    assert not (tmp_path / "gtm_plan.docx").exists()
+    assert "python-docx is not installed" in capsys.readouterr().out

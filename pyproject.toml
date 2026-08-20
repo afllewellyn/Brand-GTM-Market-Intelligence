@@ -17,6 +17,9 @@ dependencies = [
     "PyYAML>=6.0",
     "requests>=2.31",
     "python-dotenv>=1.0",
+    # Word twins of the two Markdown deliverables, for forwarding to people
+    # whose tools render .md as raw syntax.
+    "python-docx>=1.1",
 ]
 
 [project.optional-dependencies]

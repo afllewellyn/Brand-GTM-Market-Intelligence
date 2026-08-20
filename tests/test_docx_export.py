@@ -1,0 +1,103 @@
+"""Word rendering of the Markdown deliverables.
+
+The whole point of the .docx is that someone else can open it, so these
+tests check the file is a real OOXML package and that the Markdown subject
+actually maps onto Word styles — not merely that a file appeared.
+"""
+
+import zipfile
+
+import pytest
+from docx import Document
+
+from demand_radar.docx_export import DocxUnavailable, markdown_to_docx
+
+PLAN = """# GTM Plan
+
+> Generated from evidence.
+
+## Market Changes
+Buyers are evaluating economics.
+
+## Top 3 Plays
+
+### 1. ROI Calculator
+- Insight: pricing dominates
+- Target: **VP Finance**
+
+1. First action
+2. Second action
+"""
+
+SUMMARY = """WHAT CHANGED
+Pricing themes lead this run.
+
+THREE MOST IMPORTANT ACTIONS
+1. Ship the calculator
+"""
+
+
+def _styles(path):
+    return [(p.style.name, p.text) for p in Document(str(path)).paragraphs]
+
+
+def test_docx_is_a_valid_ooxml_package(tmp_path):
+    """A .docx is a zip with specific parts; anything less will not open."""
+    out = markdown_to_docx(PLAN, tmp_path / "plan.docx", "Fallback")
+    with zipfile.ZipFile(out) as zf:
+        names = set(zf.namelist())
+        assert zf.testzip() is None
+    assert "[Content_Types].xml" in names
+    assert "word/document.xml" in names
+
+
+def test_leading_h1_becomes_the_document_title(tmp_path):
+    styles = _styles(markdown_to_docx(PLAN, tmp_path / "p.docx", "Fallback"))
+    assert styles[0] == ("Title", "GTM Plan")
+    assert "Fallback" not in [text for _, text in styles]
+
+
+def test_markdown_constructs_map_to_word_styles(tmp_path):
+    styles = dict(
+        (text, style)
+        for style, text in _styles(markdown_to_docx(PLAN, tmp_path / "p.docx", "F"))
+    )
+    assert styles["Generated from evidence."] == "Intense Quote"
+    assert styles["Market Changes"] == "Heading 1"
+    assert styles["1. ROI Calculator"] == "Heading 2"
+    assert styles["Insight: pricing dominates"] == "List Bullet"
+    assert styles["First action"] == "List Number"
+    assert styles["Buyers are evaluating economics."] == "Normal"
+
+
+def test_bold_survives_into_word(tmp_path):
+    doc = Document(str(markdown_to_docx(PLAN, tmp_path / "p.docx", "F")))
+    para = next(p for p in doc.paragraphs if p.text.startswith("Target:"))
+    assert [(r.text, r.bold) for r in para.runs] == [
+        ("Target: ", False),
+        ("VP Finance", True),
+    ]
+
+
+def test_summary_without_markdown_gets_the_fallback_title(tmp_path):
+    """The executive summary has no `# ` heading — its bare uppercase labels
+    are sections, not the document's name."""
+    styles = _styles(markdown_to_docx(SUMMARY, tmp_path / "s.docx", "Executive Summary"))
+    assert styles[0] == ("Title", "Executive Summary")
+    assert ("Heading 1", "WHAT CHANGED") in styles
+    assert ("Heading 1", "THREE MOST IMPORTANT ACTIONS") in styles
+
+
+def test_sentence_case_text_is_never_promoted_to_a_heading(tmp_path):
+    styles = _styles(markdown_to_docx(SUMMARY, tmp_path / "s.docx", "Executive Summary"))
+    assert ("Normal", "Pricing themes lead this run.") in styles
+
+
+def test_missing_dependency_raises_an_actionable_error():
+    """The pipeline catches this; the message has to tell a user what to do."""
+    exc = DocxUnavailable(
+        "python-docx is not installed, so no Word version was written."
+    )
+    assert "python-docx" in str(exc)
+    with pytest.raises(DocxUnavailable):
+        raise exc

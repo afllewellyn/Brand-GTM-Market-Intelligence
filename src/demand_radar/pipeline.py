@@ -20,6 +20,7 @@ import logging
 from pathlib import Path
 
 from .config import RadarConfig
+from .docx_export import DocxUnavailable, markdown_to_docx
 from .output import (
     ensure_dir,
     new_run_id,
@@ -82,12 +83,13 @@ class Pipeline:
     # of silently mixing this run's partial output with a prior run's.
     _RUN_ARTIFACTS = (
         "queries.json", "evidence.json", "evidence.csv", "signals.json",
-        "analysis.json", "gtm_plan.md", "executive_summary.md",
+        "analysis.json", "gtm_plan.md", "gtm_plan.docx",
+        "executive_summary.md", "executive_summary.docx",
         "run_metadata.json",
     )
     _ANALYZE_ARTIFACTS = (
-        "signals.json", "analysis.json", "gtm_plan.md",
-        "executive_summary.md", "run_metadata.json",
+        "signals.json", "analysis.json", "gtm_plan.md", "gtm_plan.docx",
+        "executive_summary.md", "executive_summary.docx", "run_metadata.json",
     )
 
     def __init__(
@@ -113,6 +115,25 @@ class Pipeline:
             # failure message surfaces *above* the stage that caused it.
             print(msg, flush=True)
         log.info(msg)
+
+    def _write_docx(self, stem: str, text: str, title: str) -> None:
+        """Write the Word twin of a Markdown deliverable, best-effort.
+
+        The .md file is the source of truth and is already on disk by the
+        time this runs. A rendering problem must never fail a run that has
+        already paid for its LLM and search calls, so this warns and moves
+        on rather than raising.
+        """
+        try:
+            markdown_to_docx(text, self.out / f"{stem}.docx", title)
+        except DocxUnavailable as exc:
+            self._say(f"  NOTE: {exc}")
+        except Exception as exc:  # pragma: no cover - defensive
+            log.warning("Could not write %s.docx: %s", stem, exc)
+            self._say(
+                f"  NOTE: could not write {stem}.docx ({exc}). "
+                f"{stem}.md is complete and unaffected."
+            )
 
     def _clear_artifacts(self, names: tuple[str, ...]) -> None:
         for name in names:
@@ -262,6 +283,7 @@ class Pipeline:
             prompt=build_gtm_prompt(self.config, signals, analysis),
         )
         write_text(self.out / "gtm_plan.md", plan_md)
+        self._write_docx("gtm_plan", plan_md, f"GTM Plan — {self.config.brand_name}")
         return plan_md
 
     # -- Stage 8 ------------------------------------------------------
@@ -274,6 +296,11 @@ class Pipeline:
             prompt=build_summary_prompt(self.config, signals, analysis, plan_md),
         )
         write_text(self.out / "executive_summary.md", summary)
+        self._write_docx(
+            "executive_summary",
+            summary,
+            f"Executive Summary — {self.config.brand_name}",
+        )
         return summary
 
     # -- Orchestration ------------------------------------------------
@@ -346,4 +373,5 @@ class Pipeline:
         if self._echo:
             print(summary)
         self._say(f"\nFull report: {self.out / 'gtm_plan.md'}")
+        self._say(f"  (Word version for sharing: {self.out / 'gtm_plan.docx'})")
         self._say(f"Evidence: {self.out / 'evidence.csv'}")
