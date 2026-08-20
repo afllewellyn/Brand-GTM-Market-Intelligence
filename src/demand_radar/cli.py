@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 import typer
+from dotenv import find_dotenv, load_dotenv
 
 from .config import ConfigError, RadarConfig, load_config
 from .pipeline import Pipeline
@@ -167,6 +168,11 @@ def _demo_config() -> RadarConfig:
 
 
 def main() -> None:
+    # Load .env before any provider reads os.environ. The README tells users
+    # to put credentials in .env, so the CLI has to honor that. Real
+    # environment variables win (override=False) — an explicit `export` or a
+    # CI secret must beat a stale file on disk.
+    load_dotenv(find_dotenv(usecwd=True), override=False)
     app()
 
 
