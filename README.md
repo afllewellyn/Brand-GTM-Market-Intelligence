@@ -114,20 +114,25 @@ the signal your taxonomy does not fit what is being searched.
 ## Quickstart
 
 ```bash
-git clone <this repo> && cd enterprise-demand-radar
+git clone https://github.com/afllewellyn/Brand-GTM-Market-Intelligence.git
+cd Brand-GTM-Market-Intelligence
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 
 # no keys needed:
 demand-radar demo
 
-# live run:
-cp .env.example .env   # add your keys here; .env is gitignored
-export ANTHROPIC_API_KEY=sk-ant-...
-export DATAFORSEO_LOGIN=... DATAFORSEO_PASSWORD=...   # primary search provider
-# (or SERPER_API_KEY=... with search.provider: serper)
+# live run — put your keys in .env, which the CLI loads on startup:
+cp .env.example .env
+#   ANTHROPIC_API_KEY=sk-ant-...
+#   DATAFORSEO_LOGIN=...  DATAFORSEO_PASSWORD=...   # primary search provider
+#   (or SERPER_API_KEY=... with search.provider: serper)
 demand-radar run --config config/example.yaml
 ```
+
+`.env` is gitignored. Exported environment variables take precedence over it,
+so an `export` in your shell — or a CI secret — wins over the file; that also
+means a stale `export` will quietly override a corrected `.env`.
 
 `python -m demand_radar run --config ...` works too.
 
@@ -158,6 +163,20 @@ demand-radar demo --config config/mybrand.local.yaml
 
 Providers are forced to mock regardless of what the config names, so this is
 safe to run against a live config.
+
+## Re-analyzing Without Re-searching
+
+```bash
+demand-radar analyze --input output/evidence.json --config config/mybrand.local.yaml
+```
+
+`analyze` replays stages 5-8 — signals, trend analysis, GTM plan, executive
+summary — over evidence already on disk, without issuing a single search
+query. Use it to re-run interpretation after editing your theme taxonomy or
+switching models, and to recover from a rate limit or a failure late in a run
+without paying for the search again. It needs no search credentials.
+
+Stage-by-stage walkthrough of a full run: [`docs/workflow.md`](docs/workflow.md).
 
 ## Anthropic Configuration
 
@@ -271,8 +290,11 @@ pytest
 
 Coverage includes: URL normalization, deduplication, evidence-ID generation,
 theme matching, signal counting, config validation, mock provider behavior,
-full mock pipeline artifacts, evidence-reference integrity, and
-invalid-LLM-response handling.
+full mock pipeline artifacts, evidence-reference integrity,
+invalid-LLM-response handling, abort-on-total-search-failure, stale-artifact
+clearing, API-error translation, theme-coverage warning, and Word rendering
+(valid package, Markdown-to-style mapping, soft-wrapped paragraphs, and
+graceful degradation when rendering fails).
 
 ## Historical Prototype
 
