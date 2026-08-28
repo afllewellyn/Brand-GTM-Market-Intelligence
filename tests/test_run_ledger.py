@@ -127,7 +127,7 @@ def test_the_word_rendition_is_titled_with_the_brand(tmp_path):
     from docx import Document
 
     ledger = _open(tmp_path, brand="Acme Corp")
-    ledger.record("executive_summary", "WHAT CHANGED\nSomething did.\n")
+    ledger.record("executive_summary", "## What changed?\nSomething did.\n")
 
     docx = tmp_path / "executive_summary.docx"
     assert zipfile.is_zipfile(docx)

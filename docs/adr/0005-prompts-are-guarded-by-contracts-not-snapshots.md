@@ -64,8 +64,9 @@ catch something no other test does.
 - These are unit tests over pure functions. They say nothing about whether
   a real model *obeys* the instructions; that needs an evaluation harness
   against a live provider, which does not exist here.
-- One coupling was found and deliberately left alone: `docx_export`
-  promotes bare uppercase lines to headings and `MockLLMProvider` emits
-  them, but `build_summary_prompt` never asks for that format, so a real
-  model's summary may render without headings. Changing the prompt is a
-  product decision about the deliverable, not a test change.
+- One coupling was found and left for the repo owner to decide:
+  `docx_export` promoted bare uppercase lines to headings and
+  `MockLLMProvider` emitted them, but `build_summary_prompt` never asked
+  for that format, so a real model's summary could render without
+  headings. Since resolved in
+  [ADR-0006](0006-both-deliverables-share-one-markdown-subset.md).
