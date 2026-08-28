@@ -1,4 +1,8 @@
-"""Evidence sampling for the trend-analysis prompt (Stage 6)."""
+"""Evidence sampling for the trend-analysis prompt (Stage 6).
+
+This covers the sampler underneath the builder; `tests/test_prompts.py`
+covers the four prompt builders themselves.
+"""
 
 from demand_radar.prompts.trend_analysis import _MAX_ROWS, _sample_evidence
 from demand_radar.schemas.evidence import EvidenceRow
