@@ -106,6 +106,29 @@ def test_bare_uppercase_labels_are_promoted_as_a_fallback(tmp_path):
     assert ("Heading 1", "THREE MOST IMPORTANT ACTIONS") in styles
 
 
+def test_subsections_nest_under_a_fallback_title(tmp_path):
+    """Demotion shifts the whole hierarchy, not just the top level."""
+    text = "## Section\n\n### Subsection\n\nBody.\n"
+    styles = _styles(markdown_to_docx(text, tmp_path / "s.docx", "Title"))
+
+    assert ("Heading 1", "Section") in styles
+    assert ("Heading 2", "Subsection") in styles
+
+
+def test_an_h1_below_the_first_line_stays_a_section(tmp_path):
+    """Only a *leading* `# ` is the document name.
+
+    Demotion is now unconditional, so a `# ` further down would compute a
+    level of 0; it is clamped back to Heading 1 rather than becoming a
+    second title.
+    """
+    text = "Intro paragraph.\n\n# Later Heading\n\nBody.\n"
+    styles = _styles(markdown_to_docx(text, tmp_path / "s.docx", "Title"))
+
+    assert styles[0] == ("Title", "Title")
+    assert ("Heading 1", "Later Heading") in styles
+
+
 def test_sentence_case_text_is_never_promoted_to_a_heading(tmp_path):
     styles = _styles(markdown_to_docx(SUMMARY, tmp_path / "s.docx", "Executive Summary"))
     assert ("Normal", "Pricing themes lead this run.") in styles

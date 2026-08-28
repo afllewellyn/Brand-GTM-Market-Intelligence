@@ -19,7 +19,7 @@ def manifest(tmp_path):
     """A finished full Run: both deliverables, both Word twins, evidence CSV."""
     ledger = RunLedger(tmp_path, RunMode.FULL, "Acme")
     ledger.record("gtm_plan", "# Plan\n\nBody.\n")
-    ledger.record("executive_summary", "WHAT CHANGED\nThings.\n")
+    ledger.record("executive_summary", "## What changed?\nThings.\n")
     ledger.record("evidence", [])
     return ledger.finalize(
         stats=RunStats(), search_provider="mock", llm_provider="mock", models_used={}

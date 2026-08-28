@@ -201,6 +201,21 @@ def test_run_writes_word_versions_of_both_deliverables(tmp_path):
         for line in [ln.strip() for ln in markdown.splitlines() if ln.strip()][-3:]:
             assert line.lstrip("#>-0123456789. ") in body
 
+        # Every `## ` section must arrive as a Word heading. The content
+        # check above cannot see the difference: a document rendered as one
+        # unbroken block of body text is still a valid .docx and still
+        # contains every sentence. It is just unreadable as a document,
+        # which is the whole reason the .docx exists.
+        sections = [ln[3:].strip() for ln in markdown.splitlines() if ln.startswith("## ")]
+        assert sections, f"{stem}.md has no `## ` sections"
+        headings = {
+            p.text for p in paragraphs if p.style.name.startswith("Heading")
+        }
+        assert not [s for s in sections if s not in headings], (
+            f"{stem}.docx renders its sections as body text: "
+            f"{[s for s in sections if s not in headings]}"
+        )
+
     # The summary has no `# ` heading of its own, so its title is the one the
     # pipeline supplies — the brand's name, which is what a recipient sees.
     summary_title = Document(str(tmp_path / "executive_summary.docx")).paragraphs[0]
