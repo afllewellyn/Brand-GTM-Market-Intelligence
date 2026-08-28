@@ -9,96 +9,63 @@ Accepted.
 ## Context
 
 Four modules under `src/demand_radar/prompts/` build every instruction the
-Run sends to a model, and until now **no test in the repository called any
-of them**.
+Run sends to a model, and no test called any of them.
 
 The golden-artifact suite looked like it covered them and did not.
 `MockLLMProvider` returns canned data keyed on the task name and never
-reads the prompt it is handed, so every fixture in `tests/golden/` is
-byte-identical whether the prompt is correct, mangled, or the empty
-string. The suite that guards the Run's output is structurally blind to
-the Run's input.
+reads the prompt, so every fixture in `tests/golden/` is byte-identical
+whether the prompt is correct, mangled, or empty. The suite guarding the
+Run's output is structurally blind to the Run's input.
 
-What that left unguarded is not typos. It is the set of places a prompt is
-coupled to code somewhere else:
+What that left unguarded is not typos. It is the places a prompt is
+coupled to code elsewhere, each failing by producing a plausible
+deliverable rather than an error:
 
 - The JSON skeleton in `build_trend_analysis_prompt` is the shape
-  `AnalysisResult` will be asked to parse. Add a field to the schema and
-  forget the prompt, and the model is never asked for it: Pydantic fills
-  the default and the analysis is quietly poorer.
+  `AnalysisResult` will be asked to parse.
 - `attribute_competitor` is a containment check that works only because
   the query-expansion prompt tells the model to begin each competitor
-  query with the configured name. Two halves of one contract, in two
-  modules, with nothing connecting them.
-- Every counts-carrying prompt embeds `SignalSummary` with
-  `theme_evidence_ids` excluded — the one unbounded field on the model.
-- A config field that stops being interpolated has no other symptom. The
-  Run completes, the artifacts are well-formed, and the deliverable
-  analyses a market nobody configured.
-
-Each failure produces a plausible-looking deliverable rather than an
-error, which is why nothing downstream catches them.
+  query with the configured name.
+- Three prompts embed `SignalSummary` with `theme_evidence_ids` excluded —
+  its one unbounded field.
+- A config field that stops being interpolated has no other symptom.
 
 ## Decision
 
-`tests/test_prompts.py` asserts the **contracts** a prompt participates
-in, not the text it produces.
+`tests/test_prompts.py` asserts the contracts a prompt participates in,
+not the text it produces.
 
-The obvious alternative — snapshot each prompt to a fixture and diff — was
+Snapshotting each prompt to a fixture was the obvious alternative and was
 rejected. Prompt wording is edited deliberately and often; a snapshot
-fails on every one of those edits, and a suite that always fails for
-expected reasons trains its reader to regenerate without looking. It would
-also be redundant with the golden fixtures in the one place it did work,
-and silent about all four couplings above, because a diff cannot tell that
-a renamed schema field and a prompt key have drifted apart.
+fails on every one of those edits, which trains its reader to regenerate
+without looking. It is also silent about every coupling above, because a
+diff cannot tell that a renamed schema field and a prompt key have drifted
+apart.
 
-So the tests read the prompt for the specific things that must be true:
+**Three tests pin a list instead of asserting a contract**, and are marked
+as such: the H2 sections of `gtm_plan.md`, the questions in
+`executive_summary.md`, and the counting-discipline sentences. Those are
+the shape of the document a reader receives, nothing else checks them, and
+there is no contract to assert in their place. They fail on any edit to a
+deliverable's structure, which is intended: confirm the change was meant,
+then update the list.
 
-- **Skeleton/schema parity**, in both directions, by parsing the embedded
-  JSON and comparing key sets with `model_fields`.
-- **Configured inputs reaching the prompt**, with distinctive fixture
-  values so containment cannot pass by accident.
-- **The counts block** present, and `theme_evidence_ids` absent.
-- **The competitor-naming instruction**, asserted end to end: queries
-  shaped the way the prompt demands are fed through
-  `attribute_competitor` and must come back attributed. The fixture list
-  is adversarial on purpose — `"AI"` inside `"OpenAI"`, `"Ferrolux"`
-  inside `"Ferrolux Systems"`.
-- **Truncation caps** on the plan excerpt, titles, and snippets, which
-  bound the cost of the largest calls in the Run.
-
-**Two tests are deliberate pinning tests** and are marked as such: the H2
-section list of `gtm_plan.md` and the question list of
-`executive_summary.md`. These are the shape of the document a reader
-receives, nothing else in the repository checks them, and there is no
-contract to assert instead — only the list itself. They fail on any edit
-to the deliverable's structure, which is the intended behavior: confirm
-the change was meant, then update the list in the test. The same reasoning
-covers the three counting-discipline instructions, whose wording is
-load-bearing because losing them turns the deliverable's figures into
-fiction that no artifact check can detect.
-
-Every test was verified to fail against a mutation of the thing it
-guards — ten mutations, ten caught — rather than trusted because it
-passed.
+Every test was verified by mutating the thing it guards rather than
+trusted because it passed — 29 mutations, 29 caught, and 23 of 24 tests
+catch something no other test does.
 
 ## Consequences
 
 - Prompt wording stays free to change. Editing a sentence breaks nothing
-  unless the sentence is one of the few doing structural work, and those
-  are named explicitly with the reason attached.
-- Schema drift now fails at import-time cost instead of at the end of a
-  paid Run, where a rejected `AnalysisResult` has already cost the
-  searches and two prior model calls.
-- The suite is honest about the pinning tests rather than disguising them
-  as behavioural ones. A reader who hits one knows what to do.
-- These are unit tests over pure functions; they say nothing about whether
-  a real model *obeys* the instructions. That needs an evaluation harness
-  against a live provider, which is a different kind of test with a
-  different cost, and does not exist here.
+  unless the sentence is doing structural work, and those are named.
+- Schema drift fails in milliseconds instead of at the end of a paid Run,
+  where a rejected `AnalysisResult` has already cost the searches and two
+  model calls.
+- These are unit tests over pure functions. They say nothing about whether
+  a real model *obeys* the instructions; that needs an evaluation harness
+  against a live provider, which does not exist here.
 - One coupling was found and deliberately left alone: `docx_export`
-  promotes bare uppercase lines to headings, and `MockLLMProvider` emits
-  them, but `build_summary_prompt` never asks for that format. A real
-  model's summary may render without headings. Recorded here rather than
-  fixed, because changing the prompt is a product decision about the
-  deliverable, not a test change.
+  promotes bare uppercase lines to headings and `MockLLMProvider` emits
+  them, but `build_summary_prompt` never asks for that format, so a real
+  model's summary may render without headings. Changing the prompt is a
+  product decision about the deliverable, not a test change.

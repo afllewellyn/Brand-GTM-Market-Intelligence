@@ -1,51 +1,25 @@
 """Contract tests for the four prompt builders.
 
-WHY THIS EXISTS
----------------
-Until this file, no test in the repository called a prompt builder. The
-golden-artifact suite looks like coverage but is not: `MockLLMProvider`
-returns canned data and never reads the prompt it is handed, so every
-golden fixture is byte-identical whether the prompt is correct, mangled,
-or an empty string. A dropped instruction, a stale JSON skeleton, or a
-config field that stopped being interpolated all passed the entire suite.
+No test called a prompt builder before this file. The golden-artifact
+suite looks like coverage and is not: `MockLLMProvider` returns canned
+data and never reads the prompt, so every fixture in `tests/golden/` is
+byte-identical whether the prompt is correct, mangled, or empty.
 
-WHAT IS WORTH GUARDING
-----------------------
-Prompt wording is editorial and changes often; asserting it verbatim buys
-churn, not safety. What these tests guard instead is the set of places a
-prompt is *coupled to code elsewhere* — where a silent divergence produces
-a plausible-looking deliverable rather than an error:
+Prompt wording is editorial and changes often, so asserting it verbatim
+buys churn. These tests guard the places a prompt is coupled to code
+elsewhere, where a divergence produces a plausible deliverable rather
+than an error: response skeletons against the schemas that parse them,
+config fields reaching the prompt at all, the counts block and its
+`theme_evidence_ids` exclusion, the competitor-naming instruction that
+`attribute_competitor` depends on, and the truncation caps.
 
-1. **Response skeletons vs. Pydantic schemas.** Each prompt that asks for
-   JSON embeds a literal example of the shape it wants, and that response
-   is parsed into a model. Add a field to `AnalysisResult` and forget the
-   prompt and nothing fails — the model is never asked for the field, and
-   Pydantic fills the default. These tests assert both directions.
+Three tests pin a list instead — the GTM sections, the summary questions,
+and the counting-discipline sentences. Those are the shape of the
+document a reader receives, nothing else checks them, and there is no
+contract to assert in their place. A failure means "confirm you meant to
+change the deliverable, then update the list here."
 
-2. **Configured inputs actually reaching the prompt.** A field that stops
-   being interpolated means the Run analyses the wrong market with total
-   confidence. Nothing downstream can detect it.
-
-3. **The counts block.** Three prompts carry `SignalSummary` and exclude
-   `theme_evidence_ids`. Dropping that exclusion pushes every evidence ID
-   for every theme into the prompt.
-
-4. **The competitor-naming instruction.** `attribute_competitor` works
-   only because the query-expansion prompt tells the model to lead each
-   competitor query with the name exactly as configured. Two halves of one
-   contract, in two modules, with nothing connecting them.
-
-5. **Truncation.** Caps on the plan excerpt and on evidence titles and
-   snippets bound prompt size and therefore cost.
-
-Two tests here are deliberate pinning tests — they fail on any edit to a
-deliverable's section list. That is the point: those lists are the shape of
-the document a reader receives, and nothing else in the repository checks
-them. A failure means "confirm you meant to change the deliverable, then
-update the list here," not "the test is wrong."
-
-`test_trend_analysis_prompt.py` covers the evidence *sampler* underneath
-these builders; this file covers the builders themselves.
+`test_trend_analysis_prompt.py` covers the evidence sampler underneath.
 """
 
 from __future__ import annotations
@@ -80,13 +54,11 @@ COMPETITORS = ["Ferrolux", "AI", "OpenAI", "Ferrolux Systems"]
 ICP_ROLES = ["Head of Treasury", "VP Controllership"]
 TIMEFRAME = "fortnightly"
 
-#: Stand-in for the model-generated `gtm_plan.md` that the summary call
-#: carries for reference. Deliberately free of the brand name and the
-#: counts: the summary prompt embeds this text verbatim, so anything the
-#: plan happens to contain can satisfy an assertion about the summary
-#: prompt's *own* interpolation and hide the fact that it was dropped.
-#: Passing the real GTM prompt here — which repeats both — made the brand
-#: and counts assertions for `executive_summary` vacuous.
+#: Stand-in for the model-generated `gtm_plan.md`. Carries neither the
+#: brand nor the counts: the summary prompt embeds this verbatim, so
+#: anything in it can satisfy an assertion aimed at the summary prompt's
+#: own interpolation. Passing the real GTM prompt here, which repeats
+#: both, made two `executive_summary` assertions vacuous.
 PLAN_MARKER = "Qorvith quarterly plan body"
 PLAN = f"## Market Changes\n{PLAN_MARKER}\n"
 
@@ -183,12 +155,10 @@ def _trailing_json(prompt: str, marker: str) -> dict:
 
 
 def test_trend_analysis_skeleton_parses_as_an_analysis_result():
-    """The shape the model is shown must be a shape the parser accepts.
-
-    If these drift, the model returns exactly what it was asked for and
-    validation rejects it — at the end of a paid Run, after all the
-    searches and two prior LLM calls have already been spent.
-    """
+    """The shape the model is shown must be one the parser accepts. If they
+    drift, the model returns exactly what it was asked for and validation
+    rejects it — at the end of a paid Run, after the searches and two prior
+    LLM calls are already spent."""
     prompt = build_trend_analysis_prompt(_config(), _signals(), _rows())
     skeleton = _trailing_json(prompt, ANALYSIS_SHAPE_MARKER)
 
@@ -204,13 +174,10 @@ def test_trend_analysis_skeleton_parses_as_an_analysis_result():
     ],
 )
 def test_trend_analysis_skeleton_names_every_analysis_field(key, model):
-    """Field parity, in both directions.
-
-    A field added to the schema but not the prompt is never populated: the
-    model is not asked for it, Pydantic fills the default, and the analysis
-    is quietly poorer with no failure anywhere. A field removed from the
-    schema but left in the prompt spends tokens on output that is discarded.
-    """
+    """Field parity, both directions. A field added to the schema but not
+    the prompt is never populated — Pydantic fills the default and the
+    analysis is quietly poorer; one left in the prompt after leaving the
+    schema spends tokens on output that is discarded."""
     prompt = build_trend_analysis_prompt(_config(), _signals(), _rows())
     skeleton = _trailing_json(prompt, ANALYSIS_SHAPE_MARKER)
 
@@ -225,14 +192,11 @@ def test_trend_analysis_skeleton_names_every_top_level_analysis_field():
 
 
 def test_query_expansion_skeleton_names_every_queryset_field():
-    """Same contract as above, asserted differently.
-
-    This skeleton uses `[...]` as a placeholder, so it is not parseable
-    JSON — the keys are lifted out instead. A query family named in the
-    schema but missing here is a family the model never generates, and
-    `QuerySet` defaults it to an empty list: the Run searches less than it
-    reports and every count downstream is consistent with itself.
-    """
+    """Same contract, asserted differently: this skeleton uses `[...]` as a
+    placeholder and is not parseable JSON, so the keys are lifted out. A
+    family named in the schema but missing here is one the model never
+    generates — `QuerySet` defaults it to empty, and the Run searches less
+    than it reports while every downstream count stays self-consistent."""
     prompt = build_query_expansion_prompt(_config())
     shape = prompt.split("Return ONLY a JSON object:", 1)[1]
 
@@ -247,10 +211,10 @@ def test_query_expansion_skeleton_names_every_queryset_field():
 def _all_prompts(config: RadarConfig) -> dict[str, str]:
     """Every prompt, each built from independent inputs.
 
-    The summary builder takes `PLAN` rather than the GTM prompt built
-    beside it. In production it receives model-generated Markdown, not a
-    prompt, and chaining the two here would mean the GTM prompt's own
-    brand and counts satisfy assertions aimed at the summary prompt.
+    The summary builder takes `PLAN`, not the GTM prompt beside it: in
+    production it receives model-generated Markdown, and chaining the two
+    would let the GTM prompt's brand and counts satisfy assertions aimed at
+    the summary prompt.
     """
     signals, analysis = _signals(), _analysis()
     return {
@@ -275,12 +239,9 @@ def test_the_brand_is_named_in_every_prompt():
     ],
 )
 def test_configured_inputs_reach_the_prompts_that_use_them(prompt_name, expected):
-    """A config field that stops being interpolated has no other symptom.
-
-    The Run completes, the artifacts are well-formed, and the deliverable
-    confidently analyses a market the user did not configure. Nothing
-    downstream can tell the difference.
-    """
+    """A config field that stops being interpolated has no other symptom: the
+    Run completes, the artifacts are well-formed, and the deliverable
+    confidently analyses a market nobody configured."""
     prompt = _all_prompts(_config())[prompt_name]
 
     for value in expected:
@@ -312,13 +273,10 @@ COUNTS_CARRYING = ["trend_analysis", "gtm_recommendations", "executive_summary"]
 
 @pytest.mark.parametrize("prompt_name", COUNTS_CARRYING)
 def test_the_signal_counts_reach_the_prompts_that_cite_them(prompt_name):
-    """Each of these prompts instructs the model to cite counts verbatim.
-
-    If the counts stop being embedded, that instruction points at nothing
-    and the model has only prose to work from — the numbers in the
-    deliverable become invented while the prompt still forbids inventing
-    them.
-    """
+    """Each of these prompts tells the model to cite counts verbatim. If the
+    counts stop being embedded, that instruction points at nothing: the
+    deliverable's numbers become invented while the prompt still forbids
+    inventing them."""
     prompt = _all_prompts(_config())[prompt_name]
 
     assert '"total_evidence_rows": 42' in prompt
@@ -328,13 +286,10 @@ def test_the_signal_counts_reach_the_prompts_that_cite_them(prompt_name):
 
 @pytest.mark.parametrize("prompt_name", COUNTS_CARRYING)
 def test_evidence_id_lists_are_kept_out_of_the_counts_block(prompt_name):
-    """`theme_evidence_ids` is excluded from all three counts blocks.
-
-    It is the one unbounded field on `SignalSummary` — every evidence ID
-    for every theme. A dropped `exclude=` grows all three prompts with the
-    size of the Run and adds nothing the model can use, since the evidence
-    rows themselves are already supplied where they are needed.
-    """
+    """`theme_evidence_ids` is the one unbounded field on `SignalSummary`.
+    A dropped `exclude=` grows all three prompts with the size of the Run
+    and adds nothing usable, since the evidence rows themselves are already
+    supplied where they are needed."""
     prompt = _all_prompts(_config())[prompt_name]
 
     assert "theme_evidence_ids" not in prompt
@@ -355,19 +310,14 @@ def test_competitors_are_listed_verbatim_for_the_model_to_copy():
 
 
 def test_queries_shaped_as_the_prompt_demands_attribute_to_the_right_competitor():
-    """The other half of the contract, asserted end to end.
+    """The link between the prompt's instruction and the code relying on it.
 
-    `attribute_competitor` is a containment check that only works because
-    the query-expansion prompt requires each competitor query to begin with
-    the configured name. The instruction lives in one module and the code
-    that depends on it in another, with nothing linking them. This test is
-    that link: it builds queries the way the prompt demands and asserts
-    attribution recovers the name.
-
-    The fixture list is deliberately adversarial — "AI" is a substring of
-    "OpenAI", and "Ferrolux" a prefix of "Ferrolux Systems" — because
-    overlapping vendor names are exactly where a containment check goes
-    wrong quietly, attributing a rival's activity to the wrong company.
+    `attribute_competitor` only works because the prompt requires each
+    competitor query to begin with the configured name; the two live in
+    different modules with nothing connecting them. The fixture list is
+    adversarial on purpose — "AI" inside "OpenAI", "Ferrolux" inside
+    "Ferrolux Systems" — since overlapping names are where a containment
+    check goes wrong quietly.
     """
     for name in COMPETITORS:
         query = f"{name} enterprise pricing 2026"
@@ -375,14 +325,10 @@ def test_queries_shaped_as_the_prompt_demands_attribute_to_the_right_competitor(
 
 
 def test_the_prompt_asks_for_competitor_queries_to_lead_with_the_name():
-    """A pinning test on one load-bearing sentence.
-
-    Wording here is not free: drop this instruction and the model starts
-    writing "pricing comparison for enterprise voice vendors", which
-    attributes to nobody. The `competitor_name` column empties out, the
-    competitor-move section of the analysis loses its evidence, and every
-    artifact is still well-formed.
-    """
+    """Drop this instruction and the model writes "pricing comparison for
+    enterprise voice vendors", which attributes to nobody: `competitor_name`
+    empties out and competitor-move analysis loses its evidence, with every
+    artifact still well-formed."""
     prompt = build_query_expansion_prompt(_config())
 
     assert "Begin each competitor" in prompt
@@ -394,34 +340,22 @@ def test_the_prompt_asks_for_competitor_queries_to_lead_with_the_name():
 # --------------------------------------------------------------------------
 
 
-def test_the_gtm_plan_reaches_the_summary_prompt():
-    """The summary is written against the plan, not just the analysis, so
-    that the two deliverables do not contradict each other."""
-    prompt = build_summary_prompt(_config(), _signals(), _analysis(), PLAN)
-
-    assert PLAN_MARKER in prompt
-
-
 def test_the_gtm_plan_excerpt_is_capped_in_the_summary_prompt():
-    """The summary prompt carries the plan for reference, not in full.
-
-    The plan is model-generated and unbounded; the summary call already
-    carries the counts and the whole analysis. Without the cap, one verbose
-    plan doubles the cost of the last call in the Run.
-    """
-    plan = "x" * 20_000
+    """The plan is model-generated and unbounded, and the summary call
+    already carries the counts and the whole analysis. Without the cap, one
+    verbose plan doubles the cost of the last call in the Run."""
+    plan = PLAN + "x" * 20_000
     prompt = build_summary_prompt(_config(), _signals(), _analysis(), plan)
 
-    assert "x" * 4_000 in prompt
+    assert PLAN_MARKER in prompt, "the plan must reach the prompt at all"
+    assert "x" * 3_900 in prompt
     assert "x" * 4_001 not in prompt
 
 
 def test_evidence_titles_and_snippets_are_capped_in_the_analysis_prompt():
-    """Caps applied per row, multiplied by up to 120 rows.
-
-    An uncapped snippet is provider-controlled text of arbitrary length, so
-    this bounds the largest prompt in the Run.
-    """
+    """Applied per row and multiplied by up to 120 rows. A snippet is
+    provider-controlled text of arbitrary length, so this cap bounds the
+    largest prompt in the Run."""
     rows = [_row("market", 0, title="T" * 300, snippet="S" * 400)]
     prompt = build_trend_analysis_prompt(_config(), _signals(), rows)
 
@@ -540,12 +474,9 @@ def test_the_summary_prompt_asks_its_questions_in_order():
 
 
 def test_the_summary_prompt_asks_for_evidence_labeling():
-    """Every statement is labeled as observation, inference, or recommendation.
-
-    This is the summary's central discipline: it is the only thing keeping a
-    500-word document from reading as though the model's inferences were
-    measurements.
-    """
+    """Labeling every statement as observation, inference, or recommendation
+    is the only thing keeping a 500-word document from reading as though the
+    model's inferences were measurements."""
     prompt = build_summary_prompt(_config(), _signals(), _analysis(), PLAN)
 
     for label in ("Observed Evidence", "Interpretation", "Recommended Action"):
