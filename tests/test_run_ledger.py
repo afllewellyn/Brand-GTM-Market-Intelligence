@@ -238,3 +238,32 @@ def test_stages_cannot_write_before_a_run_is_opened(tmp_path):
     )
     with pytest.raises(RuntimeError, match="No Run is open"):
         pipe.stage5_aggregate(_rows())
+
+
+# -- a closed Run stays closed ---------------------------------------------
+def test_recording_after_finalizing_is_refused(tmp_path):
+    """run_metadata.json states when the Run completed and what it produced.
+
+    A later write would leave that record — and the manifest callers report
+    from — describing a directory that no longer matches.
+    """
+    ledger = _open(tmp_path)
+    ledger.finalize(
+        stats=RunStats(), search_provider="mock", llm_provider="mock", models_used={}
+    )
+    with pytest.raises(RuntimeError, match="this Run was finalized"):
+        ledger.record("signals", SignalSummary())
+    assert not (tmp_path / "signals.json").exists()
+
+
+def test_finalizing_twice_is_refused(tmp_path):
+    ledger = _open(tmp_path)
+    kwargs = dict(
+        stats=RunStats(), search_provider="mock", llm_provider="mock", models_used={}
+    )
+    ledger.finalize(**kwargs)
+    stamped = (tmp_path / "run_metadata.json").read_text(encoding="utf-8")
+    with pytest.raises(RuntimeError, match="Cannot finalize"):
+        ledger.finalize(**kwargs)
+    # The completion record is untouched by the refused call.
+    assert (tmp_path / "run_metadata.json").read_text(encoding="utf-8") == stamped

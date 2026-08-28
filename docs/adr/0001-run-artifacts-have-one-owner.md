@@ -63,6 +63,10 @@ Deliberate boundaries:
 - **The manifest is not persisted.** Its only consumers are in-process.
   Writing it to disk would add a file to a documented output contract in
   exchange for nothing.
+- **Closing is final.** `finalize()` stamps when the Run completed and what
+  it produced, so recording after it — or finalizing twice — is refused
+  rather than allowed to leave that record describing a directory it no
+  longer matches.
 - **There is no context manager and no `finally`.** `finalize()` runs only
   on the success path, so a Run that fails mid-way leaves visibly missing
   files. A `__exit__` that wrote metadata on failure would turn a broken

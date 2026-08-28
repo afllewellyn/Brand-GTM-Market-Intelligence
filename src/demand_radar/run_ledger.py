@@ -251,6 +251,11 @@ class RunLedger:
     is about to write. There is no ``begin()`` — an instance is never in a
     state where :meth:`record` is illegal.
 
+    :meth:`finalize` closes the Run for good. Its metadata states when the
+    Run completed and what it produced, so a later write would leave that
+    record describing a directory it no longer matches. Recording after
+    finalizing is refused rather than allowed to create that disagreement.
+
     There is deliberately no context manager and no ``finally``. Stale
     Artifacts are cleared up front and :meth:`finalize` runs only on the
     success path, so a Run that fails mid-way leaves visibly missing files.
@@ -270,6 +275,7 @@ class RunLedger:
         self.started_at = utc_now_iso()
         self._specs = {s.name: s for s in ARTIFACTS if mode in s.produced_by}
         self._manifest = Manifest()
+        self._finalized = False
         self._clear()
 
     def _clear(self) -> None:
@@ -284,6 +290,7 @@ class RunLedger:
         Returns what was written and what degraded, so the caller can
         report a best-effort failure at the moment it happens.
         """
+        self._refuse_if_closed(f"write {name}")
         try:
             spec = self._specs[name]
         except KeyError:
@@ -326,7 +333,12 @@ class RunLedger:
         llm_provider: str,
         models_used: Mapping[str, str],
     ) -> Manifest:
-        """Write the run metadata and close the Run; returns its Manifest."""
+        """Write the run metadata and close the Run; returns its Manifest.
+
+        Closing is final. A second call is refused rather than silently
+        restamping a Run that is already on the record as complete.
+        """
+        self._refuse_if_closed("finalize")
         self.record(
             "run_metadata",
             {
@@ -342,4 +354,16 @@ class RunLedger:
                 "normalized_evidence_rows": stats.normalized_evidence_rows,
             },
         )
+        self._finalized = True
         return self._manifest
+
+    def _refuse_if_closed(self, attempt: str) -> None:
+        if self._finalized:
+            raise RuntimeError(
+                f"Cannot {attempt}: this Run was finalized. Its "
+                f"run_metadata.json already records when it completed and "
+                f"what it produced, and its manifest is what callers report "
+                f"from — a later write would leave both describing an "
+                f"output directory that no longer matches. Open a new "
+                f"RunLedger for a new Run."
+            )
