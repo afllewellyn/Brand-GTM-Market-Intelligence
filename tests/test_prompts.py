@@ -454,15 +454,16 @@ def test_the_gtm_sections_appear_in_the_order_they_are_written_in():
     assert positions == sorted(positions)
 
 
-#: The questions `executive_summary.md` answers, in order. `docx_export`
-#: promotes the resulting section labels to headings.
+#: The sections `executive_summary.md` is written in, in order. The `## `
+#: prefix is the contract with `docx_export`, which promotes them to
+#: headings; without it the deliverable renders as one block of body text.
 SUMMARY_QUESTIONS = (
-    "What changed?",
-    "What does buyer behavior suggest?",
-    "Which signals appear closest to revenue?",
-    "What should Marketing do?",
-    "What should Sales do?",
-    "What are the three most important actions now?",
+    "## What changed?",
+    "## What does buyer behavior suggest?",
+    "## Which signals appear closest to revenue?",
+    "## What should Marketing do?",
+    "## What should Sales do?",
+    "## What are the three most important actions now?",
 )
 
 
@@ -471,6 +472,14 @@ def test_the_summary_prompt_asks_its_questions_in_order():
     positions = [prompt.index(question) for question in SUMMARY_QUESTIONS]
 
     assert positions == sorted(positions)
+
+
+def test_the_summary_prompt_forbids_its_own_title():
+    """A stray `# ` would be consumed as the document title, replacing the
+    branded one the Run supplies through the ledger's title template."""
+    prompt = build_summary_prompt(_config(), _signals(), _analysis(), PLAN)
+
+    assert "Do not add a `#` title" in prompt
 
 
 def test_the_summary_prompt_asks_for_evidence_labeling():

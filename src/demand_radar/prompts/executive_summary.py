@@ -28,15 +28,20 @@ ANALYSIS:
 GTM PLAN (for reference):
 {gtm_plan_md[:4000]}
 
-Answer, in order:
-- What changed?
-- What does buyer behavior suggest?
-- Which signals appear closest to revenue?
-- What should Marketing do?
-- What should Sales do?
-- What are the three most important actions now?
+Answer each question below in its own section, in this order, using the
+question itself verbatim as a `##` Markdown heading:
+## What changed?
+## What does buyer behavior suggest?
+## Which signals appear closest to revenue?
+## What should Marketing do?
+## What should Sales do?
+## What are the three most important actions now?
+
+Do not add a `#` title; one is supplied when the document is assembled.
 
 Throughout, clearly label statements as one of:
 Observed Evidence / Interpretation / Recommended Action.
 
-Plain text or light Markdown. No invented numbers. Under 500 words."""
+Use only `##` headings, `-` bullets, numbered lists and `**bold**` — this
+is converted to Word, and other markup renders as literal characters.
+No invented numbers. Under 500 words."""

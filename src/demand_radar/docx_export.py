@@ -13,9 +13,15 @@ bullet and numbered lists, blockquotes, paragraphs, and `**bold**`. This
 renders that subset faithfully and treats anything else as body text rather
 than guessing — an unrecognized construct should look plain, never wrong.
 
-The executive summary is not Markdown at all; it uses bare uppercase section
-labels (``WHAT CHANGED``). Those are promoted to headings too, so both
-documents come out looking like documents.
+Both deliverables are Markdown in the same subset. The executive summary
+carries no ``# `` title of its own — the Run supplies one — so ``##`` is
+its top section, the same as in the plan.
+
+Bare uppercase lines (``WHAT CHANGED``) are still promoted to headings.
+That path predates the summary prompt asking for ``##`` and is kept as a
+fallback: a model that ignores the instruction and falls back to plain
+labels still produces a document with headings rather than a wall of
+body text.
 """
 
 from __future__ import annotations
