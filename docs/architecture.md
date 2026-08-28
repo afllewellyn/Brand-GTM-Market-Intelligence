@@ -28,7 +28,8 @@ warning — invalid references are never silently trusted.
 src/demand_radar/
 ├── cli.py            Typer CLI: run / analyze / demo
 ├── config.py         Pydantic config models + loader
-├── pipeline.py       8-stage orchestrator
+├── pipeline.py       8-stage orchestrator; stages are private and
+│                  both entry points share one interpretation tail
 ├── run_ledger.py     Owns everything a run writes: artifact table,
 │                  renditions, clearing policy, manifest, metadata
 ├── providers/

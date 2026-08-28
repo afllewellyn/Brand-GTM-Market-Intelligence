@@ -237,7 +237,7 @@ def test_stages_cannot_write_before_a_run_is_opened(tmp_path):
         cfg, build_router(cfg.llm), MockSearchProvider(), output_dir=tmp_path
     )
     with pytest.raises(RuntimeError, match="No Run is open"):
-        pipe.stage5_aggregate(_rows())
+        pipe._stage5_aggregate(_rows())
 
 
 # -- a closed Run stays closed ---------------------------------------------
