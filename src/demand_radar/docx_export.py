@@ -87,13 +87,6 @@ def markdown_to_docx(text: str, path: Path, fallback_title: str) -> Path:
     lines = text.splitlines()
     title, body = fallback_title, lines
 
-    # A title is always written, either from a leading `# ` or from
-    # `fallback_title`, so `##` is always the document's top section and is
-    # demoted to Heading 1 either way. Keying this off the `# ` alone left
-    # a document that relies on the fallback — the executive summary —
-    # starting at Heading 2 with Heading 1 unused.
-    demoted = True
-
     # Only a leading `# ` counts as the title. Consuming it here — rather
     # than mid-loop — means the title is always the first thing in the
     # document, which is what Word's navigation pane and file previews read.
@@ -131,7 +124,12 @@ def markdown_to_docx(text: str, path: Path, fallback_title: str) -> Path:
 
         if match := _HEADING.match(stripped):
             flush()
-            level = len(match.group(1)) - (1 if demoted else 0)
+            # A title is always written — from a leading `# ` or from
+            # `fallback_title` — so `##` is the document's top section
+            # either way and maps to Heading 1, leaving no unused level
+            # between the title and the first section. A `# ` below the
+            # first line computes 0 and is clamped back up.
+            level = len(match.group(1)) - 1
             _add_runs(
                 doc.add_heading(level=min(max(level, 1), 4)), match.group(2).strip()
             )

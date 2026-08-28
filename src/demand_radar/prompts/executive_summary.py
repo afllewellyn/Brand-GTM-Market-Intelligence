@@ -42,6 +42,6 @@ Do not add a `#` title; one is supplied when the document is assembled.
 Throughout, clearly label statements as one of:
 Observed Evidence / Interpretation / Recommended Action.
 
-Use only `##` headings, `-` bullets, numbered lists and `**bold**` — this
-is converted to Word, and other markup renders as literal characters.
+Use `##` headings, `-` bullets, numbered lists and `**bold**` only. This
+is converted to Word, and other Markdown may not survive that conversion.
 No invented numbers. Under 500 words."""
