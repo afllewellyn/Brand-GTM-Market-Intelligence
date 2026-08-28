@@ -99,6 +99,19 @@ Contrast with the machine-facing outputs (`evidence.json`, `signals.json`,
 `analysis.json`), which exist to be re-read by a later Run or inspected
 directly.
 
+## Finding
+
+Something a Run discovers that a reader needs to act on, as distinct from
+progress. Two exist today: the **Theme taxonomy** barely matched the
+evidence, so the counts cannot be trusted; and a best-effort **Rendition**
+could not be written.
+
+The distinction is what a reporter's interface is built on. Progress is
+free-form text on its way to a terminal. A Finding is data — it carries the
+coverage percentage, or the exception — so that something other than a
+terminal can act on it, and so a test can assert the condition rather than
+the sentence describing it.
+
 ## Artifact
 
 One logical output of a **Run**, identified by name rather than by

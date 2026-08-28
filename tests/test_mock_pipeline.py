@@ -8,6 +8,7 @@ from docx import Document
 
 from demand_radar.cli import _demo_config
 from demand_radar.pipeline import Pipeline
+from demand_radar.reporting import ConsoleReporter, RecordingReporter
 from demand_radar.providers.llm.base import LLMProvider
 from demand_radar.providers.llm.mock import MockLLMProvider
 from demand_radar.providers.llm.router import LLMRouter, build_router
@@ -48,7 +49,7 @@ def test_mock_llm_query_expansion_schema():
 def test_full_mock_pipeline_writes_all_artifacts(tmp_path):
     cfg = _demo_config()
     router = build_router(cfg.llm)
-    pipe = Pipeline(cfg, router, MockSearchProvider(), output_dir=tmp_path, echo=False)
+    pipe = Pipeline(cfg, router, MockSearchProvider(), output_dir=tmp_path, reporter=ConsoleReporter(echo=False))
     summary = pipe.run()
     assert "SYNTHETIC" in summary
     for name in (
@@ -72,7 +73,7 @@ def test_full_mock_pipeline_writes_all_artifacts(tmp_path):
 def test_analysis_evidence_ids_reference_real_rows(tmp_path):
     cfg = _demo_config()
     router = build_router(cfg.llm)
-    pipe = Pipeline(cfg, router, MockSearchProvider(), output_dir=tmp_path, echo=False)
+    pipe = Pipeline(cfg, router, MockSearchProvider(), output_dir=tmp_path, reporter=ConsoleReporter(echo=False))
     pipe.run()
     evidence = json.loads((tmp_path / "evidence.json").read_text())
     valid_ids = {row["evidence_id"] for row in evidence}
@@ -100,7 +101,7 @@ class _BadJSONProvider(LLMProvider):
 def test_invalid_llm_response_surfaces_cleanly(tmp_path):
     cfg = _demo_config()
     router = LLMRouter(_BadJSONProvider(), cfg.llm)
-    pipe = Pipeline(cfg, router, MockSearchProvider(), output_dir=tmp_path, echo=False)
+    pipe = Pipeline(cfg, router, MockSearchProvider(), output_dir=tmp_path, reporter=ConsoleReporter(echo=False))
     with pytest.raises(ValueError, match="malformed JSON"):
         pipe.run()
 
@@ -119,7 +120,7 @@ def test_run_aborts_when_no_evidence_collected(tmp_path):
     with nothing behind it — the pipeline must fail loudly instead."""
     cfg = _demo_config()
     router = build_router(cfg.llm)
-    pipe = Pipeline(cfg, router, _EmptySearchProvider(), output_dir=tmp_path, echo=False)
+    pipe = Pipeline(cfg, router, _EmptySearchProvider(), output_dir=tmp_path, reporter=ConsoleReporter(echo=False))
     with pytest.raises(SearchError, match="No evidence collected"):
         pipe.run()
     assert not (tmp_path / "gtm_plan.md").exists()
@@ -134,40 +135,52 @@ def test_run_clears_stale_downstream_artifacts_before_writing(tmp_path):
 
     cfg = _demo_config()
     router = build_router(cfg.llm)
-    pipe = Pipeline(cfg, router, MockSearchProvider(), output_dir=tmp_path, echo=False)
+    pipe = Pipeline(cfg, router, MockSearchProvider(), output_dir=tmp_path, reporter=ConsoleReporter(echo=False))
     pipe.run()
 
     assert "STALE" not in (tmp_path / "gtm_plan.md").read_text()
     assert "STALE" not in (tmp_path / "run_metadata.json").read_text()
 
 
-def _run_with_themes(tmp_path, themes_yaml, capsys):
-    """Run the mock pipeline with a given taxonomy, return stdout."""
+def _run_with_themes(tmp_path, themes_yaml) -> RecordingReporter:
+    """Run the mock pipeline with a given taxonomy; return what it reported."""
     themes = tmp_path / "themes.yaml"
     themes.write_text(themes_yaml, encoding="utf-8")
     cfg = _demo_config().model_copy(update={"themes_file": str(themes)})
+    reporter = RecordingReporter()
     Pipeline(
-        cfg, build_router(cfg.llm), MockSearchProvider(), output_dir=tmp_path / "out"
+        cfg,
+        build_router(cfg.llm),
+        MockSearchProvider(),
+        output_dir=tmp_path / "out",
+        reporter=reporter,
     ).run()
-    return capsys.readouterr().out
+    return reporter
 
 
-def test_warns_when_taxonomy_does_not_fit_the_evidence(tmp_path, capsys):
+def test_warns_when_taxonomy_does_not_fit_the_evidence(tmp_path):
     """A mismatched taxonomy still produces counts — the warning is the only
     thing standing between a user and meaningless numbers under a correct
-    brand header."""
-    out = _run_with_themes(
-        tmp_path, "themes:\n  agriculture:\n    - tractor\n    - soybean\n", capsys
+    brand header.
+
+    Asserted as an event, not as a sentence: the finding is that coverage
+    was 0%, and rewording the message should not break this test.
+    """
+    reported = _run_with_themes(
+        tmp_path, "themes:\n  agriculture:\n    - tractor\n    - soybean\n"
     )
-    assert "WARNING" in out
-    assert "0% of evidence matched any theme" in out
+    assert len(reported.coverage_warnings) == 1
+    warning = reported.coverage_warnings[0]
+    assert warning.coverage == 0.0
+    assert warning.brand == "ElevenLabs"
+    assert warning.source.endswith("themes.yaml")
 
 
-def test_no_warning_when_taxonomy_fits(tmp_path, capsys):
-    out = _run_with_themes(
-        tmp_path, "themes:\n  broad:\n    - a\n    - e\n    - i\n", capsys
+def test_no_warning_when_taxonomy_fits(tmp_path):
+    reported = _run_with_themes(
+        tmp_path, "themes:\n  broad:\n    - a\n    - e\n    - i\n"
     )
-    assert "WARNING" not in out
+    assert reported.coverage_warnings == []
 
 
 def test_run_writes_word_versions_of_both_deliverables(tmp_path):
@@ -206,9 +219,9 @@ def test_stale_word_files_are_cleared_like_their_markdown(tmp_path):
     assert zipfile.is_zipfile(tmp_path / "gtm_plan.docx")
 
 
-def test_run_survives_a_word_rendering_failure(tmp_path, capsys, monkeypatch):
+def test_run_survives_a_word_rendering_failure(tmp_path, monkeypatch):
     """The .md is the source of truth and the LLM calls are already paid for,
-    so a Word problem must degrade to a note, not fail the run."""
+    so a Word problem must degrade to a reported finding, not fail the run."""
     import demand_radar.run_ledger as ledger_mod
     from demand_radar.docx_export import DocxUnavailable
 
@@ -219,38 +232,61 @@ def test_run_survives_a_word_rendering_failure(tmp_path, capsys, monkeypatch):
     monkeypatch.setattr(ledger_mod, "markdown_to_docx", _boom)
 
     cfg = _demo_config()
-    Pipeline(cfg, build_router(cfg.llm), MockSearchProvider(), output_dir=tmp_path).run()
+    reported = RecordingReporter()
+    Pipeline(
+        cfg,
+        build_router(cfg.llm),
+        MockSearchProvider(),
+        output_dir=tmp_path,
+        reporter=reported,
+    ).run()
 
-    out = capsys.readouterr().out
     assert (tmp_path / "gtm_plan.md").read_text(encoding="utf-8").strip()
     assert not (tmp_path / "gtm_plan.docx").exists()
-    assert "python-docx is not installed" in out
+    assert {d.path.name for d in reported.degradations} == {
+        "gtm_plan.docx",
+        "executive_summary.docx",
+    }
+    assert all(isinstance(d.error, DocxUnavailable) for d in reported.degradations)
     # Nothing may point at a Word file that was never written.
-    assert "Word version for sharing" not in out
+    assert not reported.completions[0].manifest.wrote("gtm_plan", ".docx")
 
 
-def test_closing_summary_points_at_the_word_file_when_it_exists(tmp_path, capsys):
+def test_a_completed_run_reports_the_word_file_it_wrote(tmp_path):
     cfg = _demo_config()
-    Pipeline(cfg, build_router(cfg.llm), MockSearchProvider(), output_dir=tmp_path).run()
-    assert "Word version for sharing" in capsys.readouterr().out
+    reported = RecordingReporter()
+    Pipeline(
+        cfg,
+        build_router(cfg.llm),
+        MockSearchProvider(),
+        output_dir=tmp_path,
+        reporter=reported,
+    ).run()
+
+    manifest = reported.completions[0].manifest
+    assert manifest.wrote("gtm_plan", ".docx")
+    assert manifest.path("gtm_plan", ".docx") == tmp_path / "gtm_plan.docx"
 
 
-def test_analyze_summary_omits_artifacts_it_does_not_write(tmp_path, capsys):
+def test_analyze_reports_no_artifacts_it_does_not_write(tmp_path):
     """`analyze` replays stages 5-8 over evidence passed in with --input, so
-    it never writes evidence.csv. Naming it would send someone looking for a
-    file that was never there."""
+    it never writes evidence.csv. Reporting it would send someone looking
+    for a file that was never there."""
     cfg = _demo_config()
     source = tmp_path / "src"
     Pipeline(cfg, build_router(cfg.llm), MockSearchProvider(), output_dir=source).run()
     rows = [EvidenceRow(**r) for r in json.loads((source / "evidence.json").read_text())]
 
     out = tmp_path / "replay"
-    capsys.readouterr()
-    Pipeline(cfg, build_router(cfg.llm), MockSearchProvider(), output_dir=out).analyze_only(rows)
-    printed = capsys.readouterr().out
+    reported = RecordingReporter()
+    Pipeline(
+        cfg,
+        build_router(cfg.llm),
+        MockSearchProvider(),
+        output_dir=out,
+        reporter=reported,
+    ).analyze_only(rows)
 
     assert not (out / "evidence.csv").exists()
-    # Match the pointer line itself — the summary body legitimately contains
-    # the word "Evidence:" in "Observed Evidence:".
-    assert not any(ln.startswith("Evidence:") for ln in printed.splitlines())
+    assert not reported.completions[0].manifest.wrote("evidence", ".csv")
     assert (out / "gtm_plan.md").exists()

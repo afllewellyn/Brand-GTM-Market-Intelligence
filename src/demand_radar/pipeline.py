@@ -19,7 +19,6 @@ import logging
 from pathlib import Path
 
 from .config import RadarConfig
-from .docx_export import DocxUnavailable
 from .processing.collect import collect_evidence
 from .processing.normalize import dedupe_and_assign_ids
 from .processing.signals import aggregate_signals, load_themes
@@ -29,6 +28,7 @@ from .prompts.query_expansion import build_query_expansion_prompt
 from .prompts.trend_analysis import build_trend_analysis_prompt
 from .providers.llm.router import LLMRouter
 from .providers.search.base import SearchError, SearchProvider
+from .reporting import ConsoleReporter, RunReporter
 from .run_ledger import Manifest, RecordResult, RunLedger, RunMode, RunStats
 from .schemas.analysis import AnalysisResult
 from .schemas.evidence import EvidenceRow
@@ -99,28 +99,20 @@ class Pipeline:
         router: LLMRouter,
         search: SearchProvider,
         output_dir: str | Path = "output",
-        echo: bool = True,
+        reporter: RunReporter | None = None,
     ) -> None:
         self.config = config
         self.router = router
         self.search = search
         self._output_dir = Path(output_dir)
-        self._echo = echo
+        self._report = reporter or ConsoleReporter()
         self._stats = RunStats()
         self._open_ledger: RunLedger | None = None
 
     # -- small helpers --------------------------------------------------
-    def _say(self, msg: str) -> None:
-        if self._echo:
-            # flush=True keeps progress ordered against errors. stdout is
-            # block-buffered when piped while stderr is not, so without this a
-            # failure message surfaces *above* the stage that caused it.
-            print(msg, flush=True)
-        log.info(msg)
-
     def _announce(self, stage: int, detail: str) -> None:
-        """Print a stage's progress line. The denominator is derived."""
-        self._say(f"[{stage}/{len(STAGES)}] {detail}")
+        """Report a stage start. The denominator is derived."""
+        self._report.stage(stage, len(STAGES), detail)
 
     @property
     def _ledger(self) -> RunLedger:
@@ -135,27 +127,22 @@ class Pipeline:
         """Report a best-effort rendition that could not be written.
 
         The Markdown is the source of truth and is already on disk, and the
-        Run has already paid for its LLM and search calls, so this reads as
-        a note rather than a failure.
+        Run has already paid for its LLM and search calls, so this is a
+        finding to report, not a failure to raise.
         """
         for failure in result.degraded:
-            if isinstance(failure.error, DocxUnavailable):
-                self._say(f"  NOTE: {failure.error}")
-            else:
-                self._say(
-                    f"  NOTE: could not write {failure.path.name} "
-                    f"({failure.error}). {failure.path.stem}.md is complete "
-                    f"and unaffected."
-                )
+            self._report.deliverable_degraded(
+                path=failure.path, error=failure.error
+            )
 
     # -- Stage 1 ------------------------------------------------------
     def _stage1_show_config(self) -> None:
         cfg = self.config
         self._announce(1, "Configuration loaded")
-        self._say(f"  Brand: {cfg.brand_name}")
-        self._say(f"  Market: {', '.join(cfg.primary_markets)}")
-        self._say(f"  Competitors: {len(cfg.competitors)}")
-        self._say(f"  Seed topics: {len(cfg.base_keywords)}")
+        self._report.detail(f"Brand: {cfg.brand_name}")
+        self._report.detail(f"Market: {', '.join(cfg.primary_markets)}")
+        self._report.detail(f"Competitors: {len(cfg.competitors)}")
+        self._report.detail(f"Seed topics: {len(cfg.base_keywords)}")
 
     # -- Stage 2 ------------------------------------------------------
     def _stage2_expand_queries(self) -> QuerySet:
@@ -166,8 +153,8 @@ class Pipeline:
             schema=QuerySet,
         )
         self._ledger.record("queries", queries)
-        self._say(
-            f"  {len(queries.market_queries)} market / "
+        self._report.detail(
+            f"{len(queries.market_queries)} market / "
             f"{len(queries.intent_queries)} intent / "
             f"{len(queries.competitor_queries)} competitor queries"
         )
@@ -183,11 +170,11 @@ class Pipeline:
             limit=self.config.search.results_per_query,
         )
         for tally in result.tallies:
-            self._say(
-                f"  {tally.query_type.capitalize()} queries: "
+            self._report.detail(
+                f"{tally.query_type.capitalize()} queries: "
                 f"{tally.attempted}/{tally.total}"
             )
-        self._say(f"  {len(result.rows)} raw results collected")
+        self._report.detail(f"{len(result.rows)} raw results collected")
         self._stats.queries_run = result.queries_run
         self._stats.raw_results = len(result.rows)
         return result.rows
@@ -204,7 +191,7 @@ class Pipeline:
                 "evidence would look valid but rest on nothing."
             )
         self._ledger.record("evidence", rows)
-        self._say(f"  {len(rows)} unique evidence rows (from {len(raw)} raw)")
+        self._report.detail(f"{len(rows)} unique evidence rows (from {len(raw)} raw)")
         self._stats.normalized_evidence_rows = len(rows)
         return rows
 
@@ -216,7 +203,7 @@ class Pipeline:
         self._ledger.record("signals", signals)
         top = list(signals.theme_counts.items())[:4]
         for name, count in top:
-            self._say(f"  {name}: {count}")
+            self._report.detail(f"{name}: {count}")
         self._warn_on_low_theme_coverage(rows, signals)
         return signals
 
@@ -235,12 +222,10 @@ class Pipeline:
         coverage = len(matched) / len(rows)
         if coverage >= floor:
             return
-        source = self.config.themes_file or "the built-in default taxonomy"
-        self._say(
-            f"  WARNING: only {coverage:.0%} of evidence matched any theme "
-            f"(from {source}).\n"
-            f"  Theme counts above are unreliable for {self.config.brand_name}. "
-            f"Set themes_file in your config to a taxonomy for this market."
+        self._report.taxonomy_coverage_low(
+            coverage=coverage,
+            source=self.config.themes_file or "the built-in default taxonomy",
+            brand=self.config.brand_name,
         )
 
     # -- Stage 6 ------------------------------------------------------
@@ -255,8 +240,8 @@ class Pipeline:
         )
         analysis = _validate_evidence_refs(analysis, rows)
         self._ledger.record("analysis", analysis)
-        self._say(
-            f"  {len(analysis.trends)} trends / "
+        self._report.detail(
+            f"{len(analysis.trends)} trends / "
             f"{len(analysis.buying_signals)} buying signals / "
             f"{len(analysis.competitor_moves)} competitor moves"
         )
@@ -314,7 +299,9 @@ class Pipeline:
         analysis = self._stage6_analyze(rows, signals)
         plan_md = self._stage7_gtm(signals, analysis)
         summary = self._stage8_summary(signals, analysis, plan_md)
-        self._print_summary(summary, self._close())
+        self._report.run_complete(
+            brand=self.config.brand_name, summary=summary, manifest=self._close()
+        )
         return summary
 
     # -- internals ----------------------------------------------------
@@ -341,23 +328,3 @@ class Pipeline:
             },
         )
 
-    def _print_summary(self, summary: str, manifest: Manifest) -> None:
-        bar = "=" * 60
-        self._say(
-            f"\n{bar}\nENTERPRISE DEMAND RADAR — "
-            f"{self.config.brand_name.upper()}\n{bar}\n"
-        )
-        if self._echo:
-            print(summary)
-        # Every pointer below comes from the manifest — what this Run
-        # actually wrote — rather than from probing the output directory.
-        # The Word twin is best-effort, and `analyze` writes no evidence
-        # CSV; naming either unconditionally would send someone looking for
-        # a file that was never there.
-        self._say(f"\nFull report: {manifest.path('gtm_plan', '.md')}")
-        if manifest.wrote("gtm_plan", ".docx"):
-            self._say(
-                f"  (Word version for sharing: {manifest.path('gtm_plan', '.docx')})"
-            )
-        if manifest.wrote("evidence", ".csv"):
-            self._say(f"Evidence: {manifest.path('evidence', '.csv')}")

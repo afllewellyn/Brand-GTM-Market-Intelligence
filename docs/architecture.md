@@ -32,6 +32,8 @@ src/demand_radar/
 │                  both entry points share one interpretation tail
 ├── run_ledger.py     Owns everything a run writes: artifact table,
 │                  renditions, clearing policy, manifest, metadata
+├── reporting.py      RunReporter interface; ConsoleReporter owns the
+│                  wording, RecordingReporter keeps events for tests
 ├── providers/
 │   ├── llm/          LLMProvider ABC, AnthropicProvider, MockLLMProvider,
 │   │                 LLMRouter, ExternalRouterProvider stub
