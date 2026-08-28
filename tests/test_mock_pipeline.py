@@ -6,7 +6,7 @@ import zipfile
 import pytest
 from docx import Document
 
-from demand_radar.cli import _demo_config
+from demand_radar.demo import demo_config
 from demand_radar.pipeline import Pipeline
 from demand_radar.reporting import ConsoleReporter, RecordingReporter
 from demand_radar.providers.llm.base import LLMProvider
@@ -47,7 +47,7 @@ def test_mock_llm_query_expansion_schema():
 
 
 def test_full_mock_pipeline_writes_all_artifacts(tmp_path):
-    cfg = _demo_config()
+    cfg = demo_config()
     router = build_router(cfg.llm)
     pipe = Pipeline(cfg, router, MockSearchProvider(), output_dir=tmp_path, reporter=ConsoleReporter(echo=False))
     summary = pipe.run()
@@ -71,7 +71,7 @@ def test_full_mock_pipeline_writes_all_artifacts(tmp_path):
 
 
 def test_analysis_evidence_ids_reference_real_rows(tmp_path):
-    cfg = _demo_config()
+    cfg = demo_config()
     router = build_router(cfg.llm)
     pipe = Pipeline(cfg, router, MockSearchProvider(), output_dir=tmp_path, reporter=ConsoleReporter(echo=False))
     pipe.run()
@@ -99,7 +99,7 @@ class _BadJSONProvider(LLMProvider):
 
 
 def test_invalid_llm_response_surfaces_cleanly(tmp_path):
-    cfg = _demo_config()
+    cfg = demo_config()
     router = LLMRouter(_BadJSONProvider(), cfg.llm)
     pipe = Pipeline(cfg, router, MockSearchProvider(), output_dir=tmp_path, reporter=ConsoleReporter(echo=False))
     with pytest.raises(ValueError, match="malformed JSON"):
@@ -118,7 +118,7 @@ class _EmptySearchProvider(SearchProvider):
 def test_run_aborts_when_no_evidence_collected(tmp_path):
     """A silent zero-evidence run would print a confident-looking report
     with nothing behind it — the pipeline must fail loudly instead."""
-    cfg = _demo_config()
+    cfg = demo_config()
     router = build_router(cfg.llm)
     pipe = Pipeline(cfg, router, _EmptySearchProvider(), output_dir=tmp_path, reporter=ConsoleReporter(echo=False))
     with pytest.raises(SearchError, match="No evidence collected"):
@@ -133,7 +133,7 @@ def test_run_clears_stale_downstream_artifacts_before_writing(tmp_path):
     (tmp_path / "gtm_plan.md").write_text("STALE PLAN FROM A PRIOR RUN")
     (tmp_path / "run_metadata.json").write_text("STALE METADATA")
 
-    cfg = _demo_config()
+    cfg = demo_config()
     router = build_router(cfg.llm)
     pipe = Pipeline(cfg, router, MockSearchProvider(), output_dir=tmp_path, reporter=ConsoleReporter(echo=False))
     pipe.run()
@@ -146,7 +146,7 @@ def _run_with_themes(tmp_path, themes_yaml) -> RecordingReporter:
     """Run the mock pipeline with a given taxonomy; return what it reported."""
     themes = tmp_path / "themes.yaml"
     themes.write_text(themes_yaml, encoding="utf-8")
-    cfg = _demo_config().model_copy(update={"themes_file": str(themes)})
+    cfg = demo_config().model_copy(update={"themes_file": str(themes)})
     reporter = RecordingReporter()
     Pipeline(
         cfg,
@@ -185,7 +185,7 @@ def test_no_warning_when_taxonomy_fits(tmp_path):
 
 def test_run_writes_word_versions_of_both_deliverables(tmp_path):
     """The .docx twins are what actually get forwarded to other people."""
-    cfg = _demo_config()
+    cfg = demo_config()
     Pipeline(cfg, build_router(cfg.llm), MockSearchProvider(), output_dir=tmp_path).run()
 
     for stem in ("gtm_plan", "executive_summary"):
@@ -213,7 +213,7 @@ def test_stale_word_files_are_cleared_like_their_markdown(tmp_path):
     tmp_path.mkdir(parents=True, exist_ok=True)
     (tmp_path / "gtm_plan.docx").write_text("STALE", encoding="utf-8")
 
-    cfg = _demo_config()
+    cfg = demo_config()
     Pipeline(cfg, build_router(cfg.llm), MockSearchProvider(), output_dir=tmp_path).run()
 
     assert zipfile.is_zipfile(tmp_path / "gtm_plan.docx")
@@ -231,7 +231,7 @@ def test_run_survives_a_word_rendering_failure(tmp_path, monkeypatch):
     # The renderer is invoked by the ledger, which owns the Word rendition.
     monkeypatch.setattr(ledger_mod, "markdown_to_docx", _boom)
 
-    cfg = _demo_config()
+    cfg = demo_config()
     reported = RecordingReporter()
     Pipeline(
         cfg,
@@ -253,7 +253,7 @@ def test_run_survives_a_word_rendering_failure(tmp_path, monkeypatch):
 
 
 def test_a_completed_run_reports_the_word_file_it_wrote(tmp_path):
-    cfg = _demo_config()
+    cfg = demo_config()
     reported = RecordingReporter()
     Pipeline(
         cfg,
@@ -272,7 +272,7 @@ def test_analyze_reports_no_artifacts_it_does_not_write(tmp_path):
     """`analyze` replays stages 5-8 over evidence passed in with --input, so
     it never writes evidence.csv. Reporting it would send someone looking
     for a file that was never there."""
-    cfg = _demo_config()
+    cfg = demo_config()
     source = tmp_path / "src"
     Pipeline(cfg, build_router(cfg.llm), MockSearchProvider(), output_dir=source).run()
     rows = [EvidenceRow(**r) for r in json.loads((source / "evidence.json").read_text())]

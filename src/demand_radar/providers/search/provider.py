@@ -71,6 +71,20 @@ class SerperSearchProvider(SearchProvider):
         raise SearchError(f"Search failed for {query!r}: {last_exc}")
 
 
+def provider_for_metadata(config: RadarConfig) -> SearchProvider:
+    """The configured provider, or a name-only stand-in if it cannot init.
+
+    ``analyze`` needs the provider's *name* for run metadata but never
+    searches, so a missing credential must not stop the run.
+    """
+    try:
+        return get_search_provider(config)
+    except SearchError:
+        from .unused import UnusedSearchProvider
+
+        return UnusedSearchProvider(config.search.provider)
+
+
 def get_search_provider(config: RadarConfig) -> SearchProvider:
     """Factory keyed on ``search.provider`` in the run config."""
     if config.search.provider == "mock":

@@ -11,6 +11,7 @@ import typer
 
 from demand_radar import cli
 from demand_radar.config import load_config
+from demand_radar.demo import demo_config
 
 
 def _live():
@@ -18,7 +19,7 @@ def _live():
 
 
 def _mock():
-    return cli._demo_config()
+    return demo_config()
 
 
 def test_mock_providers_never_prompt(monkeypatch, capsys):

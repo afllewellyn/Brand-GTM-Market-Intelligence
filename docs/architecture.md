@@ -26,7 +26,9 @@ warning — invalid references are never silently trusted.
 
 ```
 src/demand_radar/
-├── cli.py            Typer CLI: run / analyze / demo
+├── cli.py            Typer CLI: run / analyze / demo — argument
+│                  parsing, spend confirmation, error rendering
+├── demo.py           The free worked example: its config and taxonomy
 ├── config.py         Pydantic config models + loader
 ├── pipeline.py       8-stage orchestrator; stages are private and
 │                  both entry points share one interpretation tail
@@ -39,7 +41,8 @@ src/demand_radar/
 │   │                 LLMRouter, ExternalRouterProvider stub
 │   └── search/       SearchProvider ABC, DataForSEOSearchProvider
 │                     (production default), SerperSearchProvider,
-│                     MockSearchProvider, factory
+│                     MockSearchProvider, UnusedSearchProvider
+│                     (names a backend `analyze` never calls), factory
 ├── processing/       collect.py (query plan, competitor attribution,
 │                     per-query error tolerance), serp.py (shaping),
 │                     normalize.py (canonical URLs, dedup, IDs),

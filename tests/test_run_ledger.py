@@ -227,12 +227,12 @@ def test_recording_an_artifact_this_mode_does_not_produce_is_an_error(tmp_path):
 
 def test_stages_cannot_write_before_a_run_is_opened(tmp_path):
     """Pipeline stages reach for a ledger; failing clearly beats AttributeError."""
-    from demand_radar.cli import _demo_config
+    from demand_radar.demo import demo_config
     from demand_radar.pipeline import Pipeline
     from demand_radar.providers.llm.router import build_router
     from demand_radar.providers.search.mock import MockSearchProvider
 
-    cfg = _demo_config()
+    cfg = demo_config()
     pipe = Pipeline(
         cfg, build_router(cfg.llm), MockSearchProvider(), output_dir=tmp_path
     )

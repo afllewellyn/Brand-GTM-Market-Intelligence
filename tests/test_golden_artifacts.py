@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from demand_radar.cli import _demo_config
+from demand_radar.demo import demo_config
 from demand_radar.pipeline import Pipeline
 from demand_radar.reporting import ConsoleReporter
 from demand_radar.providers.llm.router import build_router
@@ -61,7 +61,7 @@ def _scrub(text: str) -> str:
 
 
 def _full_run(out: Path) -> Path:
-    cfg = _demo_config()
+    cfg = demo_config()
     Pipeline(
         cfg, build_router(cfg.llm), MockSearchProvider(), output_dir=out, reporter=ConsoleReporter(echo=False)
     ).run()
@@ -69,7 +69,7 @@ def _full_run(out: Path) -> Path:
 
 
 def _analyze_run(out: Path, rows: list[EvidenceRow]) -> Path:
-    cfg = _demo_config()
+    cfg = demo_config()
     Pipeline(
         cfg, build_router(cfg.llm), MockSearchProvider(), output_dir=out, reporter=ConsoleReporter(echo=False)
     ).analyze_only(rows)
