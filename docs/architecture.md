@@ -38,8 +38,10 @@ src/demand_radar/
 │   └── search/       SearchProvider ABC, DataForSEOSearchProvider
 │                     (production default), SerperSearchProvider,
 │                     MockSearchProvider, factory
-├── processing/       serp.py (shaping), normalize.py (canonical URLs,
-│                     dedup, IDs), signals.py (theme taxonomy + counting)
+├── processing/       collect.py (query plan, competitor attribution,
+│                     per-query error tolerance), serp.py (shaping),
+│                     normalize.py (canonical URLs, dedup, IDs),
+│                     signals.py (theme taxonomy + counting)
 ├── prompts/          One prompt builder per LLM task
 └── schemas/          Pydantic models for evidence, queries, signals, analysis
 ```
@@ -50,7 +52,9 @@ src/demand_radar/
 2. **Expand queries** (LLM) — seed keywords → market/intent/competitor
    queries. Saved to `output/queries.json`.
 3. **Execute searches** — via the configured `SearchProvider`, with retry
-   and per-query error tolerance.
+   and per-query error tolerance. The query plan, competitor attribution,
+   and failure policy live in `processing/collect.py`; a query that fails
+   or returns nothing is logged and skipped rather than aborting the run.
 4. **Normalize evidence** (Python) — canonical URLs, dedup, `e1..eN` IDs.
    Saved to `output/evidence.json` and `output/evidence.csv`.
 5. **Aggregate signals** (Python) — theme counts, query-type counts, top

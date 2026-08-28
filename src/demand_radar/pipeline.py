@@ -20,8 +20,8 @@ from pathlib import Path
 
 from .config import RadarConfig
 from .docx_export import DocxUnavailable
+from .processing.collect import collect_evidence
 from .processing.normalize import dedupe_and_assign_ids
-from .processing.serp import normalize_result
 from .processing.signals import aggregate_signals, load_themes
 from .prompts.executive_summary import build_summary_prompt
 from .prompts.gtm_recommendations import build_gtm_prompt
@@ -176,38 +176,21 @@ class Pipeline:
     # -- Stage 3 ------------------------------------------------------
     def _stage3_execute_searches(self, queries: QuerySet) -> list[dict]:
         self._announce(3, "Collecting search evidence...")
-        limit = self.config.search.results_per_query
-        raw: list[dict] = []
-        plan = [
-            ("market", queries.market_queries, None),
-            ("intent", queries.intent_queries, None),
-            ("competitor", queries.competitor_queries, self.config.competitors),
-        ]
-        for query_type, qlist, competitors in plan:
-            done = 0
-            for query in qlist:
-                competitor = None
-                if competitors:
-                    competitor = next(
-                        (c for c in competitors if c.lower() in query.lower()), None
-                    )
-                try:
-                    results = self.search.search(query, limit=limit)
-                except SearchError as exc:
-                    log.warning("Skipping query %r: %s", query, exc)
-                    results = []
-                if not results:
-                    log.info("No results for %r", query)
-                raw.extend(
-                    normalize_result(r, query, query_type, competitor)
-                    for r in results
-                )
-                done += 1
-            self._say(f"  {query_type.capitalize()} queries: {done}/{len(qlist)}")
-        self._say(f"  {len(raw)} raw results collected")
-        self._stats.queries_run = queries.total()
-        self._stats.raw_results = len(raw)
-        return raw
+        result = collect_evidence(
+            queries,
+            self.search,
+            competitors=self.config.competitors,
+            limit=self.config.search.results_per_query,
+        )
+        for tally in result.tallies:
+            self._say(
+                f"  {tally.query_type.capitalize()} queries: "
+                f"{tally.attempted}/{tally.total}"
+            )
+        self._say(f"  {len(result.rows)} raw results collected")
+        self._stats.queries_run = result.queries_run
+        self._stats.raw_results = len(result.rows)
+        return result.rows
 
     # -- Stage 4 ------------------------------------------------------
     def _stage4_normalize(self, raw: list[dict]) -> list[EvidenceRow]:

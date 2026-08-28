@@ -46,6 +46,18 @@ Evidence IDs are the citation mechanism. Every conclusion the system draws
 must reference the IDs it rests on, and an ID the model invents is dropped
 rather than trusted.
 
+## Query type
+
+Which family a query belongs to, and therefore what its results are
+evidence *of*: `market` (category trends, adoption, use cases), `intent`
+(pricing, ROI, compliance, implementation — the language of a live
+evaluation), or `competitor` (a named vendor's GTM activity).
+
+The type travels with every **Evidence** row and is counted in **Signals**.
+Only a `competitor` query attributes its results to a competitor: a market
+query that happens to mention a vendor is evidence about the category, not
+about that vendor.
+
 ## Signals
 
 The counts computed from Evidence: theme counts, query-type counts, top
