@@ -87,6 +87,43 @@ Contrast with the machine-facing outputs (`evidence.json`, `signals.json`,
 `analysis.json`), which exist to be re-read by a later Run or inspected
 directly.
 
+## Artifact
+
+One logical output of a **Run**, identified by name rather than by
+filename: `evidence`, `signals`, `gtm_plan`, `run_metadata`. Each Artifact
+declares which Run modes produce it, which is what lets a Run clear exactly
+the files it is about to write — and never the `evidence.json` an analyze
+Run was handed as input.
+
+## Rendition
+
+One format an Artifact is written in. The same content, written more than
+one way: `evidence` has a JSON and a CSV Rendition; `gtm_plan` has Markdown
+and Word.
+
+A Rendition is *required* or *best-effort*. A best-effort Rendition that
+fails is recorded and the Run continues — reserved for formats derived from
+a source of truth that is already safely on disk, so a Word rendering
+problem cannot cost a Run its already-paid-for LLM and search calls.
+
+## Manifest
+
+The record of what a Run actually wrote — which Renditions of which
+Artifacts, at which paths, and which degraded.
+
+It exists so that nothing has to ask the filesystem what the Run itself
+just did. "Was the Word twin written?" is a question about the Run, not
+about the directory, and the two can disagree.
+
+## Run Ledger
+
+The module that owns Artifacts, Renditions, clearing, and the Manifest:
+everything a Run writes to disk. Opened by an entry point, filled by the
+stages, closed by `finalize()`.
+
+It deliberately does not narrate. It records outcomes and hands them back;
+deciding what a person reads about them belongs to the caller.
+
 ## Buying stage
 
 Where a **Signal** sits in the purchase cycle: `early` (learning the

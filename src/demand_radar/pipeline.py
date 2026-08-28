@@ -12,6 +12,11 @@ Stages
 8. Executive summary             (LLM)
 
 Evidence first. Interpretation second.
+
+Stages name what they produce; they do not know where it lands, what
+format it is written in, or whether a Word twin came out. That belongs to
+the :class:`~demand_radar.run_ledger.RunLedger` this Pipeline opens for
+each Run.
 """
 
 from __future__ import annotations
@@ -20,16 +25,9 @@ import logging
 from pathlib import Path
 
 from .config import RadarConfig
-from .docx_export import DocxUnavailable, markdown_to_docx
-from .output import (
-    ensure_dir,
-    new_run_id,
-    write_evidence_csv,
-    write_json,
-    write_text,
-)
+from .docx_export import DocxUnavailable
 from .processing.normalize import dedupe_and_assign_ids
-from .processing.serp import normalize_result, utc_now_iso
+from .processing.serp import normalize_result
 from .processing.signals import aggregate_signals, load_themes
 from .prompts.executive_summary import build_summary_prompt
 from .prompts.gtm_recommendations import build_gtm_prompt
@@ -37,12 +35,21 @@ from .prompts.query_expansion import build_query_expansion_prompt
 from .prompts.trend_analysis import build_trend_analysis_prompt
 from .providers.llm.router import LLMRouter
 from .providers.search.base import SearchError, SearchProvider
+from .run_ledger import Manifest, RecordResult, RunLedger, RunMode, RunStats
 from .schemas.analysis import AnalysisResult
 from .schemas.evidence import EvidenceRow
 from .schemas.queries import QuerySet
 from .schemas.signals import SignalSummary
 
 log = logging.getLogger(__name__)
+
+#: LLM tasks whose resolved model is recorded in the run metadata.
+_ROUTED_TASKS = (
+    "query_expansion",
+    "trend_analysis",
+    "gtm_recommendations",
+    "executive_summary",
+)
 
 
 def _validate_evidence_refs(
@@ -78,20 +85,6 @@ def _validate_evidence_refs(
 class Pipeline:
     """Runs the eight-stage demand radar for one configuration."""
 
-    # Filenames each entry point (re)writes, in write order. Cleared before
-    # a run starts so a stage failure leaves visibly missing files instead
-    # of silently mixing this run's partial output with a prior run's.
-    _RUN_ARTIFACTS = (
-        "queries.json", "evidence.json", "evidence.csv", "signals.json",
-        "analysis.json", "gtm_plan.md", "gtm_plan.docx",
-        "executive_summary.md", "executive_summary.docx",
-        "run_metadata.json",
-    )
-    _ANALYZE_ARTIFACTS = (
-        "signals.json", "analysis.json", "gtm_plan.md", "gtm_plan.docx",
-        "executive_summary.md", "executive_summary.docx", "run_metadata.json",
-    )
-
     def __init__(
         self,
         config: RadarConfig,
@@ -103,9 +96,10 @@ class Pipeline:
         self.config = config
         self.router = router
         self.search = search
-        self.out = ensure_dir(output_dir)
+        self._output_dir = Path(output_dir)
         self._echo = echo
-        self._metadata: dict = {}
+        self._stats = RunStats()
+        self._open_ledger: RunLedger | None = None
 
     # -- small helpers --------------------------------------------------
     def _say(self, msg: str) -> None:
@@ -116,28 +110,31 @@ class Pipeline:
             print(msg, flush=True)
         log.info(msg)
 
-    def _write_docx(self, stem: str, text: str, title: str) -> None:
-        """Write the Word twin of a Markdown deliverable, best-effort.
-
-        The .md file is the source of truth and is already on disk by the
-        time this runs. A rendering problem must never fail a run that has
-        already paid for its LLM and search calls, so this warns and moves
-        on rather than raising.
-        """
-        try:
-            markdown_to_docx(text, self.out / f"{stem}.docx", title)
-        except DocxUnavailable as exc:
-            self._say(f"  NOTE: {exc}")
-        except Exception as exc:  # pragma: no cover - defensive
-            log.warning("Could not write %s.docx: %s", stem, exc)
-            self._say(
-                f"  NOTE: could not write {stem}.docx ({exc}). "
-                f"{stem}.md is complete and unaffected."
+    @property
+    def _ledger(self) -> RunLedger:
+        if self._open_ledger is None:
+            raise RuntimeError(
+                "No Run is open. Stages are executed by run() or "
+                "analyze_only(), which open the ledger owning a Run's output."
             )
+        return self._open_ledger
 
-    def _clear_artifacts(self, names: tuple[str, ...]) -> None:
-        for name in names:
-            (self.out / name).unlink(missing_ok=True)
+    def _note_degradations(self, result: RecordResult) -> None:
+        """Report a best-effort rendition that could not be written.
+
+        The Markdown is the source of truth and is already on disk, and the
+        Run has already paid for its LLM and search calls, so this reads as
+        a note rather than a failure.
+        """
+        for failure in result.degraded:
+            if isinstance(failure.error, DocxUnavailable):
+                self._say(f"  NOTE: {failure.error}")
+            else:
+                self._say(
+                    f"  NOTE: could not write {failure.path.name} "
+                    f"({failure.error}). {failure.path.stem}.md is complete "
+                    f"and unaffected."
+                )
 
     # -- Stage 1 ------------------------------------------------------
     def stage1_show_config(self) -> None:
@@ -156,7 +153,7 @@ class Pipeline:
             prompt=build_query_expansion_prompt(self.config),
             schema=QuerySet,
         )
-        write_json(self.out / "queries.json", queries.model_dump())
+        self._ledger.record("queries", queries)
         self._say(
             f"  {len(queries.market_queries)} market / "
             f"{len(queries.intent_queries)} intent / "
@@ -196,8 +193,8 @@ class Pipeline:
                 done += 1
             self._say(f"  {query_type.capitalize()} queries: {done}/{len(qlist)}")
         self._say(f"  {len(raw)} raw results collected")
-        self._metadata["queries_run"] = queries.total()
-        self._metadata["raw_results"] = len(raw)
+        self._stats.queries_run = queries.total()
+        self._stats.raw_results = len(raw)
         return raw
 
     # -- Stage 4 ------------------------------------------------------
@@ -211,12 +208,9 @@ class Pipeline:
                 "connectivity before re-running — a report built on zero "
                 "evidence would look valid but rest on nothing."
             )
-        write_json(
-            self.out / "evidence.json", [r.model_dump() for r in rows]
-        )
-        write_evidence_csv(self.out / "evidence.csv", rows)
+        self._ledger.record("evidence", rows)
         self._say(f"  {len(rows)} unique evidence rows (from {len(raw)} raw)")
-        self._metadata["normalized_evidence_rows"] = len(rows)
+        self._stats.normalized_evidence_rows = len(rows)
         return rows
 
     # -- Stage 5 ------------------------------------------------------
@@ -224,7 +218,7 @@ class Pipeline:
         self._say("[5/8] Aggregating signals (deterministic Python)...")
         themes = load_themes(self.config.themes_file)
         signals = aggregate_signals(rows, themes)
-        write_json(self.out / "signals.json", signals.model_dump())
+        self._ledger.record("signals", signals)
         top = list(signals.theme_counts.items())[:4]
         for name, count in top:
             self._say(f"  {name}: {count}")
@@ -265,7 +259,7 @@ class Pipeline:
             schema=AnalysisResult,
         )
         analysis = _validate_evidence_refs(analysis, rows)
-        write_json(self.out / "analysis.json", analysis.model_dump())
+        self._ledger.record("analysis", analysis)
         self._say(
             f"  {len(analysis.trends)} trends / "
             f"{len(analysis.buying_signals)} buying signals / "
@@ -282,8 +276,7 @@ class Pipeline:
             task="gtm_recommendations",
             prompt=build_gtm_prompt(self.config, signals, analysis),
         )
-        write_text(self.out / "gtm_plan.md", plan_md)
-        self._write_docx("gtm_plan", plan_md, f"GTM Plan — {self.config.brand_name}")
+        self._note_degradations(self._ledger.record("gtm_plan", plan_md))
         return plan_md
 
     # -- Stage 8 ------------------------------------------------------
@@ -295,20 +288,13 @@ class Pipeline:
             task="executive_summary",
             prompt=build_summary_prompt(self.config, signals, analysis, plan_md),
         )
-        write_text(self.out / "executive_summary.md", summary)
-        self._write_docx(
-            "executive_summary",
-            summary,
-            f"Executive Summary — {self.config.brand_name}",
-        )
+        self._note_degradations(self._ledger.record("executive_summary", summary))
         return summary
 
     # -- Orchestration ------------------------------------------------
     def run(self) -> str:
         """Execute all eight stages; returns the executive summary text."""
-        self._clear_artifacts(self._RUN_ARTIFACTS)
-        run_id = new_run_id()
-        started = utc_now_iso()
+        self._open(RunMode.FULL)
         self.stage1_show_config()
         queries = self.stage2_expand_queries()
         raw = self.stage3_execute_searches(queries)
@@ -317,54 +303,45 @@ class Pipeline:
         analysis = self.stage6_analyze(rows, signals)
         plan_md = self.stage7_gtm(signals, analysis)
         summary = self.stage8_summary(signals, analysis, plan_md)
-        self._write_metadata(run_id, started)
-        self._print_summary(summary)
+        self._print_summary(summary, self._close())
         return summary
 
     def analyze_only(self, rows: list[EvidenceRow]) -> str:
         """Stages 5-8 over pre-collected evidence (``demand-radar analyze``)."""
-        self._clear_artifacts(self._ANALYZE_ARTIFACTS)
-        run_id = new_run_id()
-        started = utc_now_iso()
-        self._metadata["normalized_evidence_rows"] = len(rows)
+        self._open(RunMode.ANALYZE)
+        self._stats.normalized_evidence_rows = len(rows)
         signals = self.stage5_aggregate(rows)
         analysis = self.stage6_analyze(rows, signals)
         plan_md = self.stage7_gtm(signals, analysis)
         summary = self.stage8_summary(signals, analysis, plan_md)
-        self._write_metadata(run_id, started)
-        self._print_summary(summary)
+        self._print_summary(summary, self._close())
         return summary
 
     # -- internals ----------------------------------------------------
-    def _write_metadata(self, run_id: str, started_at: str) -> None:
-        models = {
-            task: self.router.route(task).model
-            for task in (
-                "query_expansion",
-                "trend_analysis",
-                "gtm_recommendations",
-                "executive_summary",
-            )
-        }
-        write_json(
-            self.out / "run_metadata.json",
-            {
-                "run_id": run_id,
-                "brand": self.config.brand_name,
-                "started_at": started_at,
-                "completed_at": utc_now_iso(),
-                "search_provider": self.search.name,
-                "llm_provider": self.router.provider_name,
-                "models_used": models,
-                "queries_run": self._metadata.get("queries_run", 0),
-                "raw_results": self._metadata.get("raw_results", 0),
-                "normalized_evidence_rows": self._metadata.get(
-                    "normalized_evidence_rows", 0
-                ),
+    def _open(self, mode: RunMode) -> RunLedger:
+        """Open a Run: fresh counters, fresh ledger, stale artifacts cleared."""
+        self._stats = RunStats()
+        self._open_ledger = RunLedger(
+            self._output_dir, mode, self.config.brand_name
+        )
+        return self._open_ledger
+
+    def _close(self) -> Manifest:
+        """Write run metadata and return what this Run produced.
+
+        Only reached on the success path — a Run that fails mid-way leaves
+        visibly missing files rather than plausible-looking metadata.
+        """
+        return self._ledger.finalize(
+            stats=self._stats,
+            search_provider=self.search.name,
+            llm_provider=self.router.provider_name,
+            models_used={
+                task: self.router.route(task).model for task in _ROUTED_TASKS
             },
         )
 
-    def _print_summary(self, summary: str) -> None:
+    def _print_summary(self, summary: str, manifest: Manifest) -> None:
         bar = "=" * 60
         self._say(
             f"\n{bar}\nENTERPRISE DEMAND RADAR — "
@@ -372,15 +349,15 @@ class Pipeline:
         )
         if self._echo:
             print(summary)
-        self._say(f"\nFull report: {self.out / 'gtm_plan.md'}")
-        # _write_docx degrades to a warning rather than failing the run, so
-        # this file is not guaranteed to exist. Pointing at a missing path
-        # would send someone looking for a report that was never written.
-        plan_docx = self.out / "gtm_plan.docx"
-        if plan_docx.exists():
-            self._say(f"  (Word version for sharing: {plan_docx})")
-        # `analyze` replays stages 5-8 over evidence supplied via --input and
-        # never writes evidence.csv, so the same existence check applies.
-        evidence_csv = self.out / "evidence.csv"
-        if evidence_csv.exists():
-            self._say(f"Evidence: {evidence_csv}")
+        # Every pointer below comes from the manifest — what this Run
+        # actually wrote — rather than from probing the output directory.
+        # The Word twin is best-effort, and `analyze` writes no evidence
+        # CSV; naming either unconditionally would send someone looking for
+        # a file that was never there.
+        self._say(f"\nFull report: {manifest.path('gtm_plan', '.md')}")
+        if manifest.wrote("gtm_plan", ".docx"):
+            self._say(
+                f"  (Word version for sharing: {manifest.path('gtm_plan', '.docx')})"
+            )
+        if manifest.wrote("evidence", ".csv"):
+            self._say(f"Evidence: {manifest.path('evidence', '.csv')}")

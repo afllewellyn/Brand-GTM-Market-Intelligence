@@ -209,12 +209,14 @@ def test_stale_word_files_are_cleared_like_their_markdown(tmp_path):
 def test_run_survives_a_word_rendering_failure(tmp_path, capsys, monkeypatch):
     """The .md is the source of truth and the LLM calls are already paid for,
     so a Word problem must degrade to a note, not fail the run."""
-    import demand_radar.pipeline as pipeline_mod
+    import demand_radar.run_ledger as ledger_mod
+    from demand_radar.docx_export import DocxUnavailable
 
     def _boom(*args, **kwargs):
-        raise pipeline_mod.DocxUnavailable("python-docx is not installed")
+        raise DocxUnavailable("python-docx is not installed")
 
-    monkeypatch.setattr(pipeline_mod, "markdown_to_docx", _boom)
+    # The renderer is invoked by the ledger, which owns the Word rendition.
+    monkeypatch.setattr(ledger_mod, "markdown_to_docx", _boom)
 
     cfg = _demo_config()
     Pipeline(cfg, build_router(cfg.llm), MockSearchProvider(), output_dir=tmp_path).run()

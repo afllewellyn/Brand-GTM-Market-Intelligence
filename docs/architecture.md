@@ -29,7 +29,8 @@ src/demand_radar/
 ├── cli.py            Typer CLI: run / analyze / demo
 ├── config.py         Pydantic config models + loader
 ├── pipeline.py       8-stage orchestrator
-├── output.py         JSON/CSV/Markdown writers, run metadata
+├── run_ledger.py     Owns everything a run writes: artifact table,
+│                  renditions, clearing policy, manifest, metadata
 ├── providers/
 │   ├── llm/          LLMProvider ABC, AnthropicProvider, MockLLMProvider,
 │   │                 LLMRouter, ExternalRouterProvider stub
@@ -61,6 +62,13 @@ src/demand_radar/
 
 Every run also writes `output/run_metadata.json` (run ID, providers,
 models used, row counts, timestamps).
+
+Which files a run writes, in which formats, and which are cleared first is
+described by a single table in `run_ledger.py` — see
+[ADR-0001](adr/0001-run-artifacts-have-one-owner.md). Stages name what they
+produce; they do not know where it lands. Because a run clears exactly the
+artifacts it produces, `analyze` can never delete the `evidence.json` it
+was given as input.
 
 ## Provider abstraction
 

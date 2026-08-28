@@ -153,8 +153,8 @@ def test_analyze_does_not_delete_the_evidence_it_reads(tmp_path):
     """`analyze --input output/evidence.json` reads the directory it writes.
 
     Clearing evidence.json before an analyze Run would destroy that Run's
-    own input. Today the rule survives only as an absence from
-    `_ANALYZE_ARTIFACTS`; this pins it as behaviour.
+    own input. This pins it as end-to-end behaviour; the rule itself lives
+    in the artifact table (see tests/test_run_ledger.py).
     """
     _full_run(tmp_path)
     before = (tmp_path / "evidence.json").read_bytes()
