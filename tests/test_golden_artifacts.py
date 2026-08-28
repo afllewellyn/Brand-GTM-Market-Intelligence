@@ -19,21 +19,38 @@ them — and when it does, this suite is *supposed* to fail.
 Only some of it reaches the artifacts. Measured, not assumed:
 
     change this                          and these fixtures move
-    -----------------------------------  ----------------------------
+    -----------------------------------  -----------------------------
     demo competitors                     evidence.json, evidence.csv
     demo_themes.yaml / themes_file       signals.json
     search.results_per_query             evidence.*, signals.json
     MockSearchProvider results           evidence.*, signals.json
-    MockLLMProvider canned text          queries, analysis, both .md
-    -----------------------------------  ----------------------------
+    MockLLM._query_expansion             queries.json, evidence.*,
+                                           signals.json
+    MockLLM._trend_analysis              analysis.json
+    MockLLM._gtm_recommendations         gtm_plan.md
+    MockLLM._executive_summary           executive_summary.md
+    -----------------------------------  -----------------------------
     brand_name, base_keywords,           nothing
     icp_roles, primary_markets
 
-Those last four only ever reach prompt text, and the mock LLM ignores its
-prompt. **That is a real limit on what this suite covers: it pins the
-artifacts a Run writes, not the prompts it builds.** A change that alters
-only prompt wording passes here untouched. `tests/test_trend_analysis_prompt.py`
-is where prompt construction is guarded.
+`_query_expansion` is the one with reach beyond its own artifact, and the
+reason is easy to miss: `MockSearchProvider` derives each result from a
+hash of the query string it is given. Change the canned queries and you
+change the evidence they retrieve, which changes the signals counted over
+it. The other three canned responses are terminal — nothing downstream
+reads them.
+
+The bottom row is not an oversight. Those four fields only ever reach
+prompt text, and the mock LLM ignores its prompt entirely.
+
+**That is a real limit on what this suite covers: it pins the artifacts a
+Run writes, not the prompts it builds.** A change to prompt wording — a
+dropped instruction, a mangled section list, a lost "never invent a count"
+— passes here untouched, and nothing else in the suite catches it either:
+no test in this repository calls any prompt builder.
+`tests/test_trend_analysis_prompt.py` covers only the `_sample_evidence`
+truncation helper, not the prompt it feeds. Prompt construction is
+currently unguarded.
 
 When a fixture does move:
 
