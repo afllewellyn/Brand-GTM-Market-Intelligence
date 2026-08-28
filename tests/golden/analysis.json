@@ -1,0 +1,88 @@
+{
+  "trends": [
+    {
+      "id": "t1",
+      "name": "Economic scrutiny of voice AI purchases",
+      "description": "[SYNTHETIC DEMO OUTPUT] Pricing, ROI, and cost language appears across market and intent evidence, suggesting buyers are pressure-testing the economics of voice AI.",
+      "supporting_evidence_ids": [
+        "e1",
+        "e2",
+        "e3"
+      ],
+      "strength_score_1_to_10": 7,
+      "relevance_to_brand_1_to_10": 8,
+      "relevant_icps": [
+        "Head of CX",
+        "Contact Center Operations"
+      ],
+      "time_horizon": "short"
+    },
+    {
+      "id": "t2",
+      "name": "Compliance as a gating requirement",
+      "description": "[SYNTHETIC DEMO OUTPUT] Security and compliance terms recur in intent-stage evidence, consistent with procurement and risk review entering the cycle.",
+      "supporting_evidence_ids": [
+        "e4",
+        "e5",
+        "e6"
+      ],
+      "strength_score_1_to_10": 5,
+      "relevance_to_brand_1_to_10": 7,
+      "relevant_icps": [
+        "Head of Compliance"
+      ],
+      "time_horizon": "medium"
+    }
+  ],
+  "buying_signals": [
+    {
+      "id": "b1",
+      "description": "[SYNTHETIC DEMO OUTPUT] Mid-stage evaluation signal: pricing and implementation queries dominate intent evidence.",
+      "stage": "mid",
+      "related_keywords": [
+        "pricing",
+        "roi",
+        "implementation"
+      ],
+      "related_competitors": [],
+      "evidence_ids": [
+        "e1",
+        "e2",
+        "e3",
+        "e4"
+      ]
+    },
+    {
+      "id": "b2",
+      "description": "[SYNTHETIC DEMO OUTPUT] Late-stage comparison signal: vendor-versus-vendor and alternatives language present.",
+      "stage": "late",
+      "related_keywords": [
+        "vs",
+        "alternatives",
+        "benchmark"
+      ],
+      "related_competitors": [
+        "PolyAI",
+        "Deepgram"
+      ],
+      "evidence_ids": [
+        "e7",
+        "e8",
+        "e9"
+      ]
+    }
+  ],
+  "competitor_moves": [
+    {
+      "competitor_name": "PolyAI",
+      "move_type": "case_study",
+      "description": "[SYNTHETIC DEMO OUTPUT] Enterprise proof content surfaced in competitor query results.",
+      "risk_to_brand_1_to_10": 6,
+      "opportunity_for_brand_1_to_10": 5,
+      "evidence_ids": [
+        "e10",
+        "e11"
+      ]
+    }
+  ]
+}
