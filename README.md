@@ -29,8 +29,7 @@ Given a brand, seed keywords, competitors, and ICP roles, the radar:
 Demand generation decisions are usually argued from anecdote. I wanted a
 system where every GTM recommendation traces back to a countable, inspectable
 evidence row — and where the counting is done by code that can be tested, not
-by a model that can hallucinate. It's the same discipline I apply to client
-work: confidence has to match evidence.
+by a model that can hallucinate.
 
 ## Project Inspiration: From AirOps Prototype to CLI
 
