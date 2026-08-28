@@ -79,7 +79,14 @@ def markdown_to_docx(text: str, path: Path, fallback_title: str) -> Path:
         ) from exc
 
     lines = text.splitlines()
-    title, body, demoted = fallback_title, lines, False
+    title, body = fallback_title, lines
+
+    # A title is always written, either from a leading `# ` or from
+    # `fallback_title`, so `##` is always the document's top section and is
+    # demoted to Heading 1 either way. Keying this off the `# ` alone left
+    # a document that relies on the fallback — the executive summary —
+    # starting at Heading 2 with Heading 1 unused.
+    demoted = True
 
     # Only a leading `# ` counts as the title. Consuming it here — rather
     # than mid-loop — means the title is always the first thing in the
@@ -90,9 +97,6 @@ def markdown_to_docx(text: str, path: Path, fallback_title: str) -> Path:
         if (match := _HEADING.match(line.strip())) and len(match.group(1)) == 1:
             title = match.group(2).strip()
             body = lines[i + 1 :]
-            # `##` is then the top section, so shift the whole hierarchy up
-            # one to sit under the title instead of leaving Heading 1 unused.
-            demoted = True
         break
 
     doc = Document()
