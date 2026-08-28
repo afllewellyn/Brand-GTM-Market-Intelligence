@@ -80,6 +80,16 @@ COMPETITORS = ["Ferrolux", "AI", "OpenAI", "Ferrolux Systems"]
 ICP_ROLES = ["Head of Treasury", "VP Controllership"]
 TIMEFRAME = "fortnightly"
 
+#: Stand-in for the model-generated `gtm_plan.md` that the summary call
+#: carries for reference. Deliberately free of the brand name and the
+#: counts: the summary prompt embeds this text verbatim, so anything the
+#: plan happens to contain can satisfy an assertion about the summary
+#: prompt's *own* interpolation and hide the fact that it was dropped.
+#: Passing the real GTM prompt here — which repeats both — made the brand
+#: and counts assertions for `executive_summary` vacuous.
+PLAN_MARKER = "Qorvith quarterly plan body"
+PLAN = f"## Market Changes\n{PLAN_MARKER}\n"
+
 
 def _config(**overrides) -> RadarConfig:
     base = dict(
@@ -235,13 +245,19 @@ def test_query_expansion_skeleton_names_every_queryset_field():
 
 
 def _all_prompts(config: RadarConfig) -> dict[str, str]:
+    """Every prompt, each built from independent inputs.
+
+    The summary builder takes `PLAN` rather than the GTM prompt built
+    beside it. In production it receives model-generated Markdown, not a
+    prompt, and chaining the two here would mean the GTM prompt's own
+    brand and counts satisfy assertions aimed at the summary prompt.
+    """
     signals, analysis = _signals(), _analysis()
-    gtm = build_gtm_prompt(config, signals, analysis)
     return {
         "query_expansion": build_query_expansion_prompt(config),
         "trend_analysis": build_trend_analysis_prompt(config, signals, _rows()),
-        "gtm_recommendations": gtm,
-        "executive_summary": build_summary_prompt(config, signals, analysis, gtm),
+        "gtm_recommendations": build_gtm_prompt(config, signals, analysis),
+        "executive_summary": build_summary_prompt(config, signals, analysis, PLAN),
     }
 
 
@@ -378,6 +394,14 @@ def test_the_prompt_asks_for_competitor_queries_to_lead_with_the_name():
 # --------------------------------------------------------------------------
 
 
+def test_the_gtm_plan_reaches_the_summary_prompt():
+    """The summary is written against the plan, not just the analysis, so
+    that the two deliverables do not contradict each other."""
+    prompt = build_summary_prompt(_config(), _signals(), _analysis(), PLAN)
+
+    assert PLAN_MARKER in prompt
+
+
 def test_the_gtm_plan_excerpt_is_capped_in_the_summary_prompt():
     """The summary prompt carries the plan for reference, not in full.
 
@@ -509,7 +533,7 @@ SUMMARY_QUESTIONS = (
 
 
 def test_the_summary_prompt_asks_its_questions_in_order():
-    prompt = build_summary_prompt(_config(), _signals(), _analysis(), "plan")
+    prompt = build_summary_prompt(_config(), _signals(), _analysis(), PLAN)
     positions = [prompt.index(question) for question in SUMMARY_QUESTIONS]
 
     assert positions == sorted(positions)
@@ -522,7 +546,7 @@ def test_the_summary_prompt_asks_for_evidence_labeling():
     500-word document from reading as though the model's inferences were
     measurements.
     """
-    prompt = build_summary_prompt(_config(), _signals(), _analysis(), "plan")
+    prompt = build_summary_prompt(_config(), _signals(), _analysis(), PLAN)
 
     for label in ("Observed Evidence", "Interpretation", "Recommended Action"):
         assert label in prompt
