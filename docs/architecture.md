@@ -29,7 +29,6 @@ src/demand_radar/
 ├── cli.py            Typer CLI: run / analyze / demo
 ├── config.py         Pydantic config models + loader
 ├── pipeline.py       8-stage orchestrator
-├── history.py        Run-over-run comparison interface (TODO: persistence)
 ├── output.py         JSON/CSV/Markdown writers, run metadata
 ├── providers/
 │   ├── llm/          LLMProvider ABC, AnthropicProvider, MockLLMProvider,
@@ -92,10 +91,13 @@ model per task from central config. See `docs/model_routing.md`.
 - Malformed model JSON → one repair retry, then a clear `LLMError`.
 - Invalid evidence references → dropped and logged.
 
-## Historical comparison (foundation)
+## Historical comparison (not built)
 
-`history.py` defines `compare_theme_counts()` (pure, tested by design) and
-a `HistoryStore` interface. Persisting past runs and feeding deltas into
-the trend-analysis prompt is the documented next step — it upgrades claims
-from "there are many pricing mentions" to "pricing interest is increasing,"
-which is the claim a GTM team actually needs.
+Nothing is persisted between runs, and no code for comparing them exists.
+
+Feeding run-over-run deltas into the trend-analysis prompt would upgrade
+claims from "there are many pricing mentions" to "pricing interest is
+increasing," which is the claim a GTM team actually needs. When it is
+built it belongs in `processing/signals.py`, which already owns every
+count in the system — see
+[ADR-0002](adr/0002-no-run-history-module-yet.md).

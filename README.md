@@ -314,9 +314,7 @@ close to when you intend to act on it.
 
 Run-over-run comparison (e.g. "pricing mentions increased from 19 to 31")
 is not implemented yet — see [Production Roadmap](#production-roadmap).
-`history.py` ships the deterministic delta function
-(`compare_theme_counts`), but there's no persistence layer behind it, so
-nothing is saved between runs. If you want to track direction over time
+Nothing is saved between runs. If you want to track direction over time
 today, save off `output/signals.json` after each run yourself and diff it
 against a prior one.
 
@@ -347,9 +345,11 @@ plays are not current ElevenLabs strategy.
 
 ## Production Roadmap
 
-- **Run-over-run trend deltas** — `history.py` ships the comparison function
-  and `HistoryStore` interface; persisting runs will let the radar say
-  "pricing interest is increasing," not just "pricing mentions exist."
+- **Run-over-run trend deltas** — persisting each run's signal counts will
+  let the radar say "pricing interest is increasing," not just "pricing
+  mentions exist." Counting and comparing counts are one responsibility, so
+  this lands in `processing/signals.py`
+  ([ADR-0002](docs/adr/0002-no-run-history-module-yet.md)).
 - Additional search adapters (SerpAPI, Tavily, Brave) alongside DataForSEO and Serper
 - Additional LLM providers (OpenAI, Gemini, local) behind the same interface
 - Adaptive model routing via the external router service
