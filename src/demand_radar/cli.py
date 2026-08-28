@@ -11,12 +11,13 @@ from pathlib import Path
 import typer
 from dotenv import find_dotenv, load_dotenv
 
-from .config import ConfigError, LLMConfig, RadarConfig, load_config
+from .config import ConfigError, RadarConfig, load_config
+from .demo import demo_config, with_mock_providers
 from .pipeline import Pipeline
 from .providers.llm.base import LLMError
 from .providers.llm.router import build_router
-from .providers.search.base import SearchError, SearchProvider
-from .providers.search.provider import get_search_provider
+from .providers.search.base import SearchError
+from .providers.search.provider import get_search_provider, provider_for_metadata
 from .schemas.evidence import EvidenceRow
 
 app = typer.Typer(
@@ -177,10 +178,10 @@ def analyze(
                 fg=typer.colors.YELLOW,
                 err=True,
             )
-            cfg = _demo_config()
+            cfg = demo_config()
         _confirm_spend(cfg, "demand-radar analyze", yes, uses_search=False)
         router = build_router(cfg.llm)
-        search = _search_provider_for_metadata(cfg)
+        search = provider_for_metadata(cfg)
         Pipeline(cfg, router, search, output_dir=output).analyze_only(rows)
     except (ConfigError, LLMError, SearchError) as exc:
         _fail(str(exc))
@@ -208,15 +209,7 @@ def demo(
     )
     if config is not None:
         try:
-            loaded = load_config(config)
-            cfg = loaded.model_copy(
-                update={
-                    "search": loaded.search.model_copy(
-                        update={"provider": "mock"}
-                    ),
-                    "llm": LLMConfig(provider="mock", routing_mode="static"),
-                }
-            )
+            cfg = with_mock_providers(load_config(config))
         except ConfigError as exc:
             _fail(str(exc))
             return
@@ -227,74 +220,10 @@ def demo(
             fg=typer.colors.YELLOW,
         )
     else:
-        cfg = _demo_config()
+        cfg = demo_config()
     router = build_router(cfg.llm)
     search = get_search_provider(cfg)
     Pipeline(cfg, router, search, output_dir=output).run()
-
-
-class _UnusedSearchProvider(SearchProvider):
-    """Records the configured provider name without needing its credentials.
-
-    ``analyze`` replays stages 5-8 over saved evidence and never searches, so
-    requiring live search credentials just to label the run would be wrong.
-    """
-
-    def __init__(self, name: str) -> None:
-        self.name = name
-
-    def search(self, query: str, limit: int = 10) -> list[dict]:
-        raise SearchError("analyze does not search; it reuses saved evidence.")
-
-
-def _search_provider_for_metadata(cfg: RadarConfig) -> SearchProvider:
-    """Build the configured provider, or a name-only stand-in if it can't init."""
-    try:
-        return get_search_provider(cfg)
-    except SearchError:
-        return _UnusedSearchProvider(cfg.search.provider)
-
-
-#: Taxonomy for the demo's voice-AI market. Lives in the package, not in
-#: config/, because config/ holds files users copy for their own brand and
-#: nothing there should be tied to one market.
-DEMO_THEMES_FILE = Path(__file__).parent / "demo_themes.yaml"
-
-
-def _demo_config() -> RadarConfig:
-    """The ElevenLabs example configuration with all providers mocked.
-
-    Demo mode is the one place a real brand appears in a run: its output is
-    banner-labeled synthetic, so a recognizable market makes the worked
-    example easier to follow than an invented one would. Everything a user
-    copies to run their own brand is market-agnostic.
-    """
-    return RadarConfig(
-        brand_name="ElevenLabs",
-        themes_file=str(DEMO_THEMES_FILE),
-        primary_markets=["North America"],
-        base_keywords=[
-            "enterprise voice AI",
-            "voice agents",
-            "AI contact center",
-            "AI phone agent",
-            "multilingual voice AI",
-            "voice AI compliance",
-            "voice infrastructure",
-        ],
-        competitors=[
-            "OpenAI", "PlayAI", "Speechify", "WellSaid Labs", "PolyAI", "Deepgram",
-        ],
-        icp_roles=[
-            "Head of CX",
-            "Contact Center Operations",
-            "Director of Product",
-            "Head of Localization",
-            "Head of Compliance",
-        ],
-        search={"provider": "mock", "results_per_query": 8},
-        llm={"provider": "mock", "routing_mode": "static"},
-    )
 
 
 def main() -> None:

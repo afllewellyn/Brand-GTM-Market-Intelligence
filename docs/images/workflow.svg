@@ -177,13 +177,14 @@
 
   <!-- Outputs node -->
   <g filter="url(#card)">
-    <rect x="994" y="380" width="252" height="120" rx="12" fill="#0f172a"/>
+    <rect x="994" y="380" width="252" height="137" rx="12" fill="#0f172a"/>
     <text x="1014" y="408" font-size="13" font-weight="700" fill="#e2e8f0">output/</text>
     <g font-size="11" fill="#94a3b8" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace">
       <text x="1014" y="429">queries.json · evidence.json/.csv</text>
       <text x="1014" y="446">signals.json · analysis.json</text>
-      <text x="1014" y="463">gtm_plan.md · executive_summary.md</text>
-      <text x="1014" y="480">run_metadata.json</text>
+      <text x="1014" y="463">gtm_plan.md/.docx</text>
+      <text x="1014" y="480">executive_summary.md/.docx</text>
+      <text x="1014" y="497">run_metadata.json</text>
     </g>
     <circle cx="994" cy="440" r="5" fill="#0f172a" stroke="#9aa3ad" stroke-width="2"/>
   </g>

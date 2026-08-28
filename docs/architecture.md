@@ -26,19 +26,27 @@ warning — invalid references are never silently trusted.
 
 ```
 src/demand_radar/
-├── cli.py            Typer CLI: run / analyze / demo
+├── cli.py            Typer CLI: run / analyze / demo — argument
+│                  parsing, spend confirmation, error rendering
+├── demo.py           The free worked example: its config and taxonomy
 ├── config.py         Pydantic config models + loader
-├── pipeline.py       8-stage orchestrator
-├── history.py        Run-over-run comparison interface (TODO: persistence)
-├── output.py         JSON/CSV/Markdown writers, run metadata
+├── pipeline.py       8-stage orchestrator; stages are private and
+│                  both entry points share one interpretation tail
+├── run_ledger.py     Owns everything a run writes: artifact table,
+│                  renditions, clearing policy, manifest, metadata
+├── reporting.py      RunReporter interface; ConsoleReporter owns the
+│                  wording, RecordingReporter keeps events for tests
 ├── providers/
 │   ├── llm/          LLMProvider ABC, AnthropicProvider, MockLLMProvider,
 │   │                 LLMRouter, ExternalRouterProvider stub
 │   └── search/       SearchProvider ABC, DataForSEOSearchProvider
 │                     (production default), SerperSearchProvider,
-│                     MockSearchProvider, factory
-├── processing/       serp.py (shaping), normalize.py (canonical URLs,
-│                     dedup, IDs), signals.py (theme taxonomy + counting)
+│                     MockSearchProvider, UnusedSearchProvider
+│                     (names a backend `analyze` never calls), factory
+├── processing/       collect.py (query plan, competitor attribution,
+│                     per-query error tolerance), serp.py (shaping),
+│                     normalize.py (canonical URLs, dedup, IDs),
+│                     signals.py (theme taxonomy + counting)
 ├── prompts/          One prompt builder per LLM task
 └── schemas/          Pydantic models for evidence, queries, signals, analysis
 ```
@@ -49,7 +57,9 @@ src/demand_radar/
 2. **Expand queries** (LLM) — seed keywords → market/intent/competitor
    queries. Saved to `output/queries.json`.
 3. **Execute searches** — via the configured `SearchProvider`, with retry
-   and per-query error tolerance.
+   and per-query error tolerance. The query plan, competitor attribution,
+   and failure policy live in `processing/collect.py`; a query that fails
+   or returns nothing is logged and skipped rather than aborting the run.
 4. **Normalize evidence** (Python) — canonical URLs, dedup, `e1..eN` IDs.
    Saved to `output/evidence.json` and `output/evidence.csv`.
 5. **Aggregate signals** (Python) — theme counts, query-type counts, top
@@ -62,6 +72,13 @@ src/demand_radar/
 
 Every run also writes `output/run_metadata.json` (run ID, providers,
 models used, row counts, timestamps).
+
+Which files a run writes, in which formats, and which are cleared first is
+described by a single table in `run_ledger.py` — see
+[ADR-0001](adr/0001-run-artifacts-have-one-owner.md). Stages name what they
+produce; they do not know where it lands. Because a run clears exactly the
+artifacts it produces, `analyze` can never delete the `evidence.json` it
+was given as input.
 
 ## Provider abstraction
 
@@ -92,10 +109,13 @@ model per task from central config. See `docs/model_routing.md`.
 - Malformed model JSON → one repair retry, then a clear `LLMError`.
 - Invalid evidence references → dropped and logged.
 
-## Historical comparison (foundation)
+## Historical comparison (not built)
 
-`history.py` defines `compare_theme_counts()` (pure, tested by design) and
-a `HistoryStore` interface. Persisting past runs and feeding deltas into
-the trend-analysis prompt is the documented next step — it upgrades claims
-from "there are many pricing mentions" to "pricing interest is increasing,"
-which is the claim a GTM team actually needs.
+Nothing is persisted between runs, and no code for comparing them exists.
+
+Feeding run-over-run deltas into the trend-analysis prompt would upgrade
+claims from "there are many pricing mentions" to "pricing interest is
+increasing," which is the claim a GTM team actually needs. When it is
+built it belongs in `processing/signals.py`, which already owns every
+count in the system — see
+[ADR-0002](adr/0002-no-run-history-module-yet.md).

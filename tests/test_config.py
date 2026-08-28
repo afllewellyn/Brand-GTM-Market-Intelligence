@@ -58,13 +58,13 @@ def test_analyze_does_not_require_search_credentials(monkeypatch):
     legitimate offline re-analysis, so the provider name falls back to the
     configured value when the real provider cannot initialize.
     """
-    from demand_radar.cli import _search_provider_for_metadata
+    from demand_radar.providers.search.provider import provider_for_metadata
     from demand_radar.config import load_config
 
     monkeypatch.delenv("DATAFORSEO_LOGIN", raising=False)
     monkeypatch.delenv("DATAFORSEO_PASSWORD", raising=False)
 
     cfg = load_config("config/example.yaml")
-    provider = _search_provider_for_metadata(cfg)
+    provider = provider_for_metadata(cfg)
 
     assert provider.name == "dataforseo", "run metadata must still name the provider"
